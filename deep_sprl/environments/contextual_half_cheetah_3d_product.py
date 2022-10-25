@@ -3,7 +3,7 @@ from gym import Env
 from .contextual_half_cheetah import ContextualHalfCheetah
 
 
-class ContextualHalfCheetah3D(Env):
+class ContextualHalfCheetah3DProduct(Env):
 
     def __init__(self, context=None):
         self.env = ContextualHalfCheetah(context=None, product_cmdp=True, rm_state_onehot=True)
@@ -11,7 +11,7 @@ class ContextualHalfCheetah3D(Env):
         self.observation_space = self.env.observation_space
 
     def set_context(self, context):
-        self.env.context = np.array([context[0], context[1], self._chest_pos, self._goal_pos])
+        self.env.context = context
 
     def get_context(self):
         return self.env.context.copy()

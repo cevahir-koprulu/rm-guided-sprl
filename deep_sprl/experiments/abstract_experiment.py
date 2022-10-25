@@ -363,7 +363,7 @@ class AbstractExperiment(ABC):
         allowed_overrides = {"DISCOUNT_FACTOR": float, "MAX_KL": float, "ZETA": float, "ALPHA_OFFSET": int,
                              "OFFSET": int, "STEPS_PER_ITER": int, "LAM": float, "AG_P_RAND": float, "AG_FIT_RATE": int,
                              "AG_MAX_SIZE": self.parse_max_size, "GG_NOISE_LEVEL": float, "GG_FIT_RATE": int,
-                             "GG_P_OLD": float, "PERF_LB": float, "LEARNING_RATE": float,
+                             "GG_P_OLD": float, "PERF_LB": float, "LEARNING_RATE": float, "ARCH": int,
                              "SAC_BUFFER": int,
                              "TARGET_TYPE": str,
                              }
@@ -388,7 +388,7 @@ class AbstractExperiment(ABC):
                 tmp = tmp[self.learner]
             learner_string += "_" + key + "=" + str(tmp).replace(" ", "")
 
-        learner_string += f"_LR={getattr(self, 'LEARNING_RATE')}"
+        learner_string += f"_LR={getattr(self, 'LEARNING_RATE')}_ARCH={getattr(self, 'ARCH')}"
         if self.learner == Learner.SAC:
             learner_string += f"_RBS={getattr(self, 'SAC_BUFFER')}"
         if self.use_true_rew:
@@ -434,7 +434,8 @@ class AbstractExperiment(ABC):
         for iteration_dir in sorted_iteration_dirs:
             iteration_log_dir = os.path.join(log_dir, iteration_dir)
             performance_log_dir = os.path.join(iteration_log_dir, "performance.npy")
-            if not os.path.exists(performance_log_dir):
+            # if not os.path.exists(performance_log_dir):
+            if True:
                 disc_rewards, eval_contexts, context_mean, context_covar, successful_eps = self.evaluate_learner(
                     path=iteration_log_dir,
                 )
@@ -450,28 +451,3 @@ class AbstractExperiment(ABC):
                 stats = np.concatenate((stats, context_stats), axis=1)
                 stats = np.concatenate((stats, successful_eps), axis=1)
                 np.save(performance_log_dir, stats)
-
-        # all_stats = None
-        # if not os.path.exists(os.path.join(log_dir, "performance.npy")):
-        #     num_context = 100
-        #     num_run = 5
-        #     for iteration_dir in sorted_iteration_dirs:
-        #         iteration_log_dir = os.path.join(log_dir, iteration_dir)
-        #         disc_rewards, eval_contexts, context_mean, context_covar = self.evaluate_learner(iteration_log_dir,
-        #                                                                                          num_context,
-        #                                                                                          num_run)
-        #         print("Evaluated " + iteration_dir + ": " + str(np.mean(disc_rewards)))
-        #         disc_rewards = np.array(disc_rewards)
-        #         eval_contexts = np.array(eval_contexts)
-        #         context_stats_ = np.concatenate((context_mean, context_covar.flatten()))
-        #         context_stats = np.ones((num_context, context_stats_.shape[0]))*context_stats_
-        #         stats = np.ones((num_context, 1))*int(iteration_dir[len("iteration")+1:])
-        #         stats = np.concatenate((stats, disc_rewards.reshape(-1, 1)), axis=1)
-        #         stats = np.concatenate((stats, eval_contexts), axis=1)
-        #         stats = np.concatenate((stats, context_stats), axis=1)
-        #         if all_stats is None:
-        #             all_stats = np.copy(stats)
-        #         else:
-        #             all_stats = np.concatenate((all_stats, stats), axis=0)
-        #
-        #     np.save(os.path.join(log_dir, "performance"), all_stats)

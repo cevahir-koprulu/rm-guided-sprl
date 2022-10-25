@@ -32,18 +32,18 @@ register(
 
 register(
     id='ContextualHalfCheetah-v1',
-    max_episode_steps=500,
+    max_episode_steps=2000,
     entry_point='deep_sprl.environments.contextual_half_cheetah:ContextualHalfCheetah'
 )
 
 register(
     id='ContextualHalfCheetah3D-v1',
-    max_episode_steps=500,
+    max_episode_steps=2000,
     entry_point='deep_sprl.environments.contextual_half_cheetah_3d:ContextualHalfCheetah3D'
 )
 
 register(
     id='ContextualHalfCheetah3DProduct-v1',
-    max_episode_steps=500,
+    max_episode_steps=2000,
     entry_point='deep_sprl.environments.contextual_half_cheetah_3d_product:ContextualHalfCheetah3DProduct'
 )

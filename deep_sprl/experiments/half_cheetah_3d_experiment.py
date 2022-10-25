@@ -1,10 +1,12 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import gym
 import numpy as np
-import tensorflow as tf
-tf.get_logger().setLevel('INFO')
-tf.autograph.set_verbosity(0)
+import torch
+from collections import defaultdict
+# import tensorflow as tf
+# tf.get_logger().setLevel('INFO')
+# tf.autograph.set_verbosity(0)
 from deep_sprl.experiments.abstract_experiment import AbstractExperiment, Learner
 from deep_sprl.teachers.alp_gmm import ALPGMM, ALPGMMWrapper
 from deep_sprl.teachers.goal_gan import GoalGAN, GoalGANWrapper
@@ -16,38 +18,38 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 
 class HalfCheetah3DExperiment(AbstractExperiment):
-    PRODUCT_CMDP = False
-
     LOWER_CONTEXT_BOUNDS = np.array([1., 4., 7.])
     UPPER_CONTEXT_BOUNDS = np.array([4., 7., 10.])
 
     INITIAL_MEAN = np.array([1., 4., 7.])
-    INITIAL_VARIANCE = np.diag(np.square([1., 1., 1.]))
+    INITIAL_VARIANCE = np.diag(np.square([.5, .5, .5]))
 
     TARGET_MEAN = np.array([4., 7., 10.])
     TARGET_VARIANCE_TYPES = {
         "narrow": np.diag(np.square([4e-3, 4e-3, 4e-3])),
-        "wide": np.diag(np.square([1., 1.])),
+        "wide": np.diag(np.square([1., 1., 1.])),
                              }
     TARGET_TYPE = "narrow"
 
+    ARCH = 256
     DISCOUNT_FACTOR = 0.99
     STD_LOWER_BOUND = np.array([4e-3, 4e-3, 4e-3])
     KL_THRESHOLD = 8000.
     MAX_KL = 0.05
 
     ZETA = {Learner.PPO: 1.45, Learner.SAC: 1.1}
-    ALPHA_OFFSET = {Learner.PPO: 20, Learner.SAC: 25}
-    OFFSET = {Learner.PPO: 5, Learner.SAC: 5}
+    ALPHA_OFFSET = {Learner.PPO: 20, Learner.SAC: 50}
+    OFFSET = {Learner.PPO: 5, Learner.SAC: 30}
     PERF_LB = {Learner.PPO: 0.9, Learner.SAC: 3.5}  # self_paced_v2
 
     STEPS_PER_ITER = 8 * 2048
-    NUM_CONTEXT_UPDATES = 11
+    NUM_CONTEXT_UPDATES = 200
     LAM = 0.99
 
+    LEARNING_RATE = 0.001
+
     # SAC Parameters
-    LEARNING_RATE = 0.0003
-    REPLAY_BUFFER_SIZE = 10000
+    SAC_BUFFER = 250000 # 10000
 
     AG_P_RAND = {Learner.PPO: 0.3, Learner.SAC: 0.1}
     AG_FIT_RATE = {Learner.PPO: 100, Learner.SAC: 200}
@@ -98,16 +100,33 @@ class HalfCheetah3DExperiment(AbstractExperiment):
         return env, DummyVecEnv([lambda: env])
 
     def create_learner_params(self):
-        return dict(common=dict(gamma=self.DISCOUNT_FACTOR, seed=self.seed, verbose=0,
-                                policy_kwargs=dict(layers=[64, 64], act_fun=tf.tanh)),
-                    ppo=dict(n_steps=self.STEPS_PER_ITER, noptepochs=8, nminibatches=32, lam=self.LAM,
-                             max_grad_norm=None, vf_coef=1.0, cliprange_vf=-1, ent_coef=0., learning_rate=0.000025),
-                    sac=dict(learning_rate=self.LEARNING_RATE, buffer_size=self.REPLAY_BUFFER_SIZE,
-                             learning_starts=500, batch_size=64, train_freq=5, target_entropy="auto"))
+        return dict(common=dict(gamma=self.DISCOUNT_FACTOR,
+                                seed=self.seed,
+                                verbose=0,
+                                device="cuda",
+                                policy_kwargs=dict(net_arch=[self.ARCH, self.ARCH],
+                                #                    activation_fn=torch.nn.Tanh,
+                                                ),
+                                                   ),
+                    ppo=dict(n_steps=self.STEPS_PER_ITER,
+                             gae_lam=self.LAM,
+                             max_grad_norm=None,
+                             batch_size=128,
+                             learning_rate=self.LEARNING_RATE,  # 0.000025,
+                             ),
+                    sac=dict(learning_rate=self.LEARNING_RATE,
+                             buffer_size=self.SAC_BUFFER,
+                             learning_starts=10000,  # 500
+                             batch_size=256,  # 64,
+                             train_freq=8, # 16
+                             target_entropy="auto",
+                             ))
 
     def create_experiment(self):
         timesteps = self.NUM_CONTEXT_UPDATES * self.STEPS_PER_ITER
         env, vec_env = self.create_environment(evaluation=False)
+        print("LEARNER_PARAMS")
+        print(self.create_learner_params())
         model, interface = self.learner.create_learner(vec_env, self.create_learner_params())
 
         if isinstance(env.teacher, SelfPacedTeacher) or isinstance(env.teacher, SelfPacedTeacherV2) or \
@@ -150,12 +169,23 @@ class HalfCheetah3DExperiment(AbstractExperiment):
     def get_env_name(self):
         return "half_cheetah_3d_"+self.TARGET_TYPE
 
-    def evaluate_learner(self, path, num_context=100, num_run=1):
+    def evaluate_learner(self, path):
+        num_context = None
+        num_run = 1
+
         model_load_path = os.path.join(path, "model.zip")
         model = self.learner.load_for_evaluation(model_load_path, self.vec_eval_env)
         eval_contexts = np.load(f"{os.getcwd()}/eval_contexts/{self.get_env_name()}_eval_contexts.npy")
+
+        if num_context is None:
+            num_context = eval_contexts.shape[0]
+
+        num_succ_eps_per_c = np.zeros((num_context, 1))
+        mission_completion_record = defaultdict(int)
         for i in range(num_context):
             context = eval_contexts[i, :]
+            # mission_completion_record[i].append(context)
+            # mission_completion_record[i]
             for j in range(num_run):
                 self.eval_env.set_current_context(context)
                 obs = self.vec_eval_env.reset()
@@ -163,8 +193,15 @@ class HalfCheetah3DExperiment(AbstractExperiment):
                 while not done:
                     action = model.step(obs, state=None, deterministic=False)
                     obs, rewards, done, infos = self.vec_eval_env.step(action)
+                if infos[0]["success"]:
+                    num_succ_eps_per_c[i, 0] += 1./num_run
+                mission_completion_record[infos[0]["mission"]] += 1
+
+        print(f"Successful Eps: {100*np.mean(num_succ_eps_per_c)}%")
+        print(mission_completion_record)
         disc_rewards = self.eval_env.get_buffer()
         ave_disc_rewards = []
         for j in range(num_context):
             ave_disc_rewards.append(np.average(disc_rewards[j*num_run:(j+1)*num_run]))
-        return ave_disc_rewards, eval_contexts, self.eval_env.teacher.mean(), self.eval_env.teacher.covariance_matrix()
+        return ave_disc_rewards, eval_contexts[:num_context, :], \
+               self.eval_env.teacher.mean(), self.eval_env.teacher.covariance_matrix(), num_succ_eps_per_c

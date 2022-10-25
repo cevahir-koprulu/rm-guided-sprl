@@ -11,7 +11,7 @@ class ContextualHalfCheetah3D(Env):
         self.observation_space = self.env.observation_space
 
     def set_context(self, context):
-        self.env.context = np.array([context[0], context[1], self._chest_pos, self._goal_pos])
+        self.env.context = context
 
     def get_context(self):
         return self.env.context.copy()
