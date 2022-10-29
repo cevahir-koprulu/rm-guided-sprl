@@ -37,7 +37,7 @@ python run_experiment.py --env two_door_discrete_2d --type default --target_type
 python run_experiment.py --env two_door_discrete_2d --type goal_gan --target_type wide --PRODUCTCMDP --seed 1 # GoalGAN
 ```
 The results demonstrated in our submitted paper can be run via *run_experiments.py* which include 
-60 different training+evaluation runs in total.
+78 training+evaluation runs in total.
 
 *sample_and_save_eval_context.py* is used to sample contexts from the target context distributions. 
 These samples are saved to be used for evaluation in every experiment so that algorithms can be compared in a fair manner.
