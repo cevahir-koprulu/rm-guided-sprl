@@ -185,6 +185,7 @@ def main():
     seeds = ["1", "2", "4"]
     env = "half_cheetah_3d_narrow"
     # env = "two_door_discrete_2d_wide"
+    # env = "two_door_discrete_4d_narrow"
     figname_extra = "" 
     plot_success = False
 
@@ -192,123 +193,128 @@ def main():
         #############################
         ## HalfCheetah-v3 & Narrow ##
         #############################
-        "GoalGAN": {
-            "algorithm": "goal_gan",
-            "label": "GoalGAN",
-            "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.1_GG_P_OLD=0.3_LR=0.001_ARCH=256_RBS=250000",
-            "color": "gold",
+        "half_cheetah_3d_narrow": {
+            "GoalGAN": {
+                "algorithm": "goal_gan",
+                "label": "GoalGAN",
+                "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.1_GG_P_OLD=0.3_LR=0.001_ARCH=256_RBS=250000",
+                "color": "gold",
+            },
+            "Default": {
+                "algorithm": "default",
+                "label": "Default",
+                "model": "sac_LR=0.001_ARCH=256_RBS=250000",
+                "color": "cyan",
+            },
+            "Default(P)": {
+                "algorithm": "default",
+                "label": "Default*",
+                "model": "sac_LR=0.001_ARCH=256_RBS=250000_PRODUCTCMDP",
+                "color": "magenta",
+            },
+            "SPRL": {
+                "algorithm": "self_paced",
+                "label": "SPDL",
+                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
+                "color": "green",
+            },
+            "Intermediate": {
+                "algorithm": "self_paced",
+                "label": "Intermediate SPRL",
+                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=4.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
+                "color": "red",
+            },
+            "RM-guided SPRL": {
+                "algorithm": "rm_guided_self_paced",
+                "label": "RM-guided SPRL",
+                "model": "sac_ALPHA_OFFSET=50_MAX_KL=0.05_OFFSET=30_ZETA=1.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
+                "color": "blue",
+            },
         },
-        "Default": {
-            "algorithm": "default",
-            "label": "Default",
-            "model": "sac_LR=0.001_ARCH=256_RBS=250000",
-            "color": "cyan",
-        },
-        "Default(P)": {
-            "algorithm": "default",
-            "label": "Default*",
-            "model": "sac_LR=0.001_ARCH=256_RBS=250000_PRODUCTCMDP",
-            "color": "magenta",
-        },
-        # "SPRL": {
-        #     "algorithm": "self_paced",
-        #     "label": "SPDL",
-        #     "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
-        #     "color": "green",
-        # },
-        "Intermediate": {
-            "algorithm": "self_paced",
-            "label": "Intermediate SPRL",
-            "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=4.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
-            "color": "red",
-        },
-        "RM-guided SPRL": {
-            "algorithm": "rm_guided_self_paced",
-            "label": "RM-guided SPRL",
-            "model": "sac_ALPHA_OFFSET=50_MAX_KL=0.05_OFFSET=30_ZETA=1.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
-            "color": "blue",
-        },
-
 
         ########################
         ## Two-door 2D & Wide ##
         ########################
-        # "GoalGAN": {
-        #     "algorithm": "goal_gan",
-        #     "label": "GoalGAN",
-        #     "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.05_GG_P_OLD=0.2_LR=0.0003_ARCH=256_RBS=60000",
-        #     "color": "gold",
-        # },
-        # "Default": {
-        #     "algorithm": "default",
-        #     "label": "Default",
-        #     "model": "sac_LR=0.0003_ARCH=256_RBS=60000",
-        #     "color": "cyan",
-        # },
-        # "Default(P)": {
-        #     "algorithm": "default",
-        #     "label": "Default*",
-        #     "model": "sac_LR=0.0003_ARCH=256_RBS=60000_PRODUCTCMDP",
-        #     "color": "magenta",
-        # },
-        # "SPRL": {
-        #     "algorithm": "self_paced",
-        #     "label": "SPDL",
-        #     "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
-        #     "color": "green",
-        # },
-        # "Intermediate": {
-        #     "algorithm": "self_paced",
-        #     "label": "Intermediate SPRL",
-        #     "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
-        #     "color": "red",
-        # },
-        # "RM-guided SPRL": {
-        #     "algorithm": "rm_guided_self_paced",
-        #     "label": "RM-guided SPRL",
-        #     "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=0.96_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
-        #     "color": "blue",
-        # },
+        "two_door_discrete_2d_wide": {
+            "GoalGAN": {
+                "algorithm": "goal_gan",
+                "label": "GoalGAN",
+                "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.05_GG_P_OLD=0.2_LR=0.0003_ARCH=256_RBS=60000",
+                "color": "gold",
+            },
+            "Default": {
+                "algorithm": "default",
+                "label": "Default",
+                "model": "sac_LR=0.0003_ARCH=256_RBS=60000",
+                "color": "cyan",
+            },
+            "Default(P)": {
+                "algorithm": "default",
+                "label": "Default*",
+                "model": "sac_LR=0.0003_ARCH=256_RBS=60000_PRODUCTCMDP",
+                "color": "magenta",
+            },
+            "SPRL": {
+                "algorithm": "self_paced",
+                "label": "SPDL",
+                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
+                "color": "green",
+            },
+            "Intermediate": {
+                "algorithm": "self_paced",
+                "label": "Intermediate SPRL",
+                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+                "color": "red",
+            },
+            "RM-guided SPRL": {
+                "algorithm": "rm_guided_self_paced",
+                "label": "RM-guided SPRL",
+                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=0.96_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+                "color": "blue",
+            },
+        },
 
         ##########################
         ## Two-door 4D & Narrow ##
         ##########################
-        # "GoalGAN": {
-        #     "algorithm": "goal_gan",
-        #     "label": "GoalGAN",
-        #     "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.1_GG_P_OLD=0.3_LR=0.0003_ARCH=64_RBS=60000",
-        #     "color": "gold",
-        # },
-        # "Default": {
-        #     "algorithm": "default",
-        #     "label": "Default",
-        #     "model": "sac_LR=0.0003_ARCH=64_RBS=60000",
-        #     "color": "cyan",
-        # },
-        # "Default(P)": {
-        #     "algorithm": "default",
-        #     "label": "Default*",
-        #     "model": "sac_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
-        #     "color": "magenta",
-        # },
-        # "SPDL": {
-        #     "algorithm": "self_paced",
-        #     "label": "SPDL",
-        #     "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000",
-        #     "color": "green",
-        # },
-        # "Intermediate": {
-        #     "algorithm": "self_paced",
-        #     "label": "Intermediate SPRL",
-        #     "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
-        #     "color": "red",
-        # },
-        # "RM-guided": {
-        #     "algorithm": "rm_guided_self_paced",
-        #     "label": "RM-guided SPRL",
-        #     "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.0_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
-        #     "color": "blue",
-        # },
+        "two_door_discrete_2d_wide": {
+            "GoalGAN": {
+                "algorithm": "goal_gan",
+                "label": "GoalGAN",
+                "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.1_GG_P_OLD=0.3_LR=0.0003_ARCH=64_RBS=60000",
+                "color": "gold",
+            },
+            "Default": {
+                "algorithm": "default",
+                "label": "Default",
+                "model": "sac_LR=0.0003_ARCH=64_RBS=60000",
+                "color": "cyan",
+            },
+            "Default(P)": {
+                "algorithm": "default",
+                "label": "Default*",
+                "model": "sac_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
+                "color": "magenta",
+            },
+            "SPDL": {
+                "algorithm": "self_paced",
+                "label": "SPDL",
+                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000",
+                "color": "green",
+            },
+            "Intermediate": {
+                "algorithm": "self_paced",
+                "label": "Intermediate SPRL",
+                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
+                "color": "red",
+            },
+            "RM-guided": {
+                "algorithm": "rm_guided_self_paced",
+                "label": "RM-guided SPRL",
+                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.0_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
+                "color": "blue",
+            },
+        }
     }
 
     settings = {
@@ -387,7 +393,7 @@ def main():
         seeds=seeds,
         env=env,
         setting=settings[env],
-        algorithms=algorithms,
+        algorithms=algorithms[env],
         plot_success=plot_success,
         figname_extra=figname_extra,
         )
