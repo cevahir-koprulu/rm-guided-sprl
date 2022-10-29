@@ -29,10 +29,12 @@ In order to run experiments for the customized HalfCheetah-v3 environment, insta
 ## How to run
 To run a single experiment, *run_experiment.py* can be called as follows (you can put additional parameters):
 ```bash
-python run_experiment.py --env two_door_discrete_2d --type rm_guided_self_paced --target_type wide --PRODUCT_CMDP True --seed 1 # RM-guided SPRL
-python run_experiment.py --env two_door_discrete_2d --type self_paced --target_type wide --PRODUCT_CMDP True --seed 1 # Intermediate
-python run_experiment.py --env two_door_discrete_2d --type self_paced --target_type wide --PRODUCT_CMDP False --seed 1 # SPDL
-python run_experiment.py --env two_door_discrete_2d --type goal_gan --target_type wide --PRODUCT_CMDP False --seed 1 # GoalGAN
+python run_experiment.py --env two_door_discrete_2d --type rm_guided_self_paced --target_type wide --PRODUCTCMDP --ZETA 0.96 --seed 1 # RM-guided SPRL
+python run_experiment.py --env two_door_discrete_2d --type self_paced --target_type wide --PRODUCTCMDP --ZETA 1.2 --seed 1 # Intermediate
+python run_experiment.py --env two_door_discrete_2d --type self_paced --target_type wide --PRODUCTCMDP --ZETA 1.2 --seed 1 # SPDL
+python run_experiment.py --env two_door_discrete_2d --type default --target_type wide --PRODUCTCMDP --seed 1 # Default*
+python run_experiment.py --env two_door_discrete_2d --type default --target_type wide --PRODUCTCMDP --seed 1 # Default
+python run_experiment.py --env two_door_discrete_2d --type goal_gan --target_type wide --PRODUCTCMDP --seed 1 # GoalGAN
 ```
 The results demonstrated in our submitted paper can be run via *run_experiments.py* which include 
 60 different training+evaluation runs in total.
