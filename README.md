@@ -34,7 +34,7 @@ python run_experiment.py --env two_door_discrete_2d --type self_paced --target_t
 python run_experiment.py --env two_door_discrete_2d --type self_paced --target_type wide --PRODUCTCMDP --ZETA 1.2 --seed 1 # SPDL
 python run_experiment.py --env two_door_discrete_2d --type default --target_type wide --PRODUCTCMDP --seed 1 # Default*
 python run_experiment.py --env two_door_discrete_2d --type default --target_type wide --seed 1 # Default
-python run_experiment.py --env two_door_discrete_2d --type goal_gan --target_type wide --PRODUCTCMDP --seed 1 # GoalGAN
+python run_experiment.py --env two_door_discrete_2d --type goal_gan --target_type wide --seed 1 # GoalGAN
 ```
 The results demonstrated in our submitted paper can be run via *run_experiments.py* which include 
 78 training+evaluation runs in total.
@@ -43,22 +43,7 @@ The results demonstrated in our submitted paper can be run via *run_experiments.
 These samples are saved to be used for evaluation in every experiment so that algorithms can be compared in a fair manner.
 
 ## Evaluation
-*plot_results.py* is used to get the plots (curricula and expected return progression) 
-provided in the submitted paper.
-
-
-
-Under *misc* directory, there are two scripts:
+Under *misc* directory, there are three scripts:
 1) *run_welch_t_test.py*: Presented results for Welch's t-test are obtained via this script.
 2) *visualize_two_door_discrete.py*: We use this script to visualize the trajectories produced in the two-door environment.
-
-## Reproducibility
-
-We provide the data saved during the training of RM-guided SPRL, Intermediate SPRL, SPDL and GoalGAN for Case Study 1,
-which is the two-door environment with 2D context space (horizontal positions of doors) and narrow target
-distribution.
-
-You can run the evaluation scripts to generate the results for this case study (see *misc* directory):
-1) Training progression plots in the submitted paper: *plot_results.py*
-2) Welch's t-test results for curricula variance in the submitted paper: *run_welch_t_test.py*
-3) Qualitative comparison (supplementary material) with agent paths in the environment: *visualize_two_door_discrete.py*
+3) *plot_results.py*: We run this script to plot the curricula and expected return progression during training.
