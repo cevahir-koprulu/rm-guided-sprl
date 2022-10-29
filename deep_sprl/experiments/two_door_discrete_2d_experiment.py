@@ -1,11 +1,7 @@
 import os
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import gym
 import numpy as np
 import torch
-# import tensorflow as tf
-# tf.get_logger().setLevel('INFO')
-# tf.autograph.set_verbosity(0)
 from deep_sprl.experiments.abstract_experiment import AbstractExperiment, Learner
 from deep_sprl.teachers.alp_gmm import ALPGMM, ALPGMMWrapper
 from deep_sprl.teachers.goal_gan import GoalGAN, GoalGANWrapper
@@ -28,38 +24,40 @@ class TwoDoorDiscrete2DExperiment(AbstractExperiment):
         "narrow": np.diag(np.square([4e-3, 4e-3])),
         "wide": np.diag(np.square([1., 1.])),
                              }
-    TARGET_TYPE = "narrow"
+    TARGET_TYPE = "wide"
 
+    ARCH = 256
     DISCOUNT_FACTOR = 0.98
     STD_LOWER_BOUND = np.array([4e-3, 4e-3])
     KL_THRESHOLD = 8000.
     MAX_KL = 0.05
 
-    ZETA = {Learner.PPO: 1.45, Learner.SAC: 1.1}
-    ALPHA_OFFSET = {Learner.PPO: 20, Learner.SAC: 25}
-    OFFSET = {Learner.PPO: 5, Learner.SAC: 1}
+    ZETA = {Learner.PPO: 1.45, Learner.SAC: 0.96}
+    ALPHA_OFFSET = {Learner.PPO: 20, Learner.SAC: 10}
+    OFFSET = {Learner.PPO: 5, Learner.SAC: 70}
     PERF_LB = {Learner.PPO: 0.9, Learner.SAC: 3.5}  # self_paced_v2
 
     STEPS_PER_ITER = 8 * 2048
-    NUM_CONTEXT_UPDATES = 11
+    NUM_CONTEXT_UPDATES = 200
     LAM = 0.99
 
     LEARNING_RATE = 0.0003
 
     # SAC Parameters
-    SAC_BUFFER = 10000
+    SAC_BUFFER = 60000
 
     AG_P_RAND = {Learner.PPO: 0.3, Learner.SAC: 0.1}
     AG_FIT_RATE = {Learner.PPO: 100, Learner.SAC: 200}
     AG_MAX_SIZE = {Learner.PPO: 500, Learner.SAC: 500}
 
-    GG_NOISE_LEVEL = {Learner.PPO: 0.025, Learner.SAC: 0.1}
+    GG_NOISE_LEVEL = {Learner.PPO: 0.025, Learner.SAC: 0.05}
     GG_FIT_RATE = {Learner.PPO: 100, Learner.SAC: 100}
-    GG_P_OLD = {Learner.PPO: 0.1, Learner.SAC: 0.3}
+    GG_P_OLD = {Learner.PPO: 0.1, Learner.SAC: 0.2}
 
     def __init__(self, base_log_dir, curriculum_name, learner_name, parameters, seed, **kwargs):
         super().__init__(base_log_dir, curriculum_name, learner_name, parameters, seed, **kwargs)
         self.eval_env, self.vec_eval_env = self.create_environment(evaluation=True)
+        print(f"Target-type: {self.TARGET_TYPE}")
 
     def create_environment(self, evaluation=False):
         if self.use_product_cmdp:
@@ -101,7 +99,7 @@ class TwoDoorDiscrete2DExperiment(AbstractExperiment):
         return dict(common=dict(gamma=self.DISCOUNT_FACTOR,
                                 seed=self.seed,
                                 verbose=0,
-                                policy_kwargs=dict(net_arch=[64, 64],
+                                policy_kwargs=dict(net_arch=[self.ARCH, self.ARCH],
                                                    activation_fn=torch.nn.Tanh)),
                     ppo=dict(n_steps=self.STEPS_PER_ITER,
                              gae_lam=self.LAM,
@@ -162,7 +160,7 @@ class TwoDoorDiscrete2DExperiment(AbstractExperiment):
         return "two_door_discrete_2d_"+self.TARGET_TYPE
 
     def evaluate_learner(self, path):
-        num_context = 100
+        num_context = None
         num_run = 1
 
         model_load_path = os.path.join(path, "model.zip")

@@ -113,8 +113,8 @@ class CrossEntropyStateGenerator(StateGenerator):
 class StateGAN(StateGenerator):
     """A GAN for generating states. It is just a wrapper for clgan.GAN.FCGAN"""
 
-    def __init__(self, state_size, evaluater_size,
-                 state_noise_level, state_range=None, state_center=None, state_bounds=None, *args, **kwargs):
+    def __init__(self, state_size, evaluater_size, state_noise_level, state_range=None, state_center=None,
+                 state_bounds=None, *args, **kwargs):
         self.gan = FCGAN(
             generator_output_size=state_size,
             discriminator_output_size=evaluater_size,

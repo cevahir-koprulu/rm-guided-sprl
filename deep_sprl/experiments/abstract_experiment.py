@@ -232,7 +232,6 @@ class ExperimentCallback:
         self.rm_guided = rm_guided
 
         self.format = "   %4d    | %.1E |   %3d    |  %.2E  |  %.2E  |  %.2E   "
-        # self.format = "   %4d    | %.1E |   %3d    |  %.2E  |  %.2E   "
         if self.sp_teacher is not None:
             context_dim = self.sp_teacher.context_dist.mean().shape[0]
             text = "| [%.2E"
@@ -242,7 +241,6 @@ class ExperimentCallback:
             self.format += text + text
 
         header = " Iteration |  Time   | Ep. Len. | Mean Reward | Mean Disc. Reward | Mean Policy STD "
-        # header = " Iteration |  Time   | Ep. Len. | Mean Reward | Mean Disc. Reward "
         if self.sp_teacher is not None:
             header += "|     Context mean     |      Context std     "
         print(header)
@@ -283,8 +281,6 @@ class ExperimentCallback:
                 data_tpl += tuple(context_mean.tolist())
                 data_tpl += tuple(context_std.tolist())
 
-            print(self.format % data_tpl)
-
             if self.iteration % self.save_interval == 0:
                 iter_log_dir = os.path.join(self.log_dir, "iteration-" + str(self.iteration))
                 os.makedirs(iter_log_dir, exist_ok=True)
@@ -304,7 +300,7 @@ class AbstractExperiment(ABC):
                      CurriculumType.SelfPaced: ["ALPHA_OFFSET", "MAX_KL", "OFFSET", "ZETA"],
                      CurriculumType.SelfPacedv2: ["PERF_LB", "MAX_KL", "OFFSET"],
                      CurriculumType.RMguidedSelfPaced: ["ALPHA_OFFSET", "MAX_KL", "OFFSET", "ZETA"],
-                     CurriculumType.GoalGAN: ["GG_NOISE_LEVEL", "GG_FIT_RATE", "GG_P_OLD", "PRODUCT_CMDP"],
+                     CurriculumType.GoalGAN: ["GG_NOISE_LEVEL", "GG_FIT_RATE", "GG_P_OLD"],
                      CurriculumType.ALPGMM: ["AG_P_RAND", "AG_FIT_RATE", "AG_MAX_SIZE"],
                      CurriculumType.Random: [],
                      CurriculumType.Default: []}
@@ -373,6 +369,7 @@ class AbstractExperiment(ABC):
 
             value = self.parameters[key]
             tmp = getattr(self, key)
+            print(f"key: {key} || val: {self.parameters[key]} || override: {allowed_overrides[key](value)}")
             if isinstance(tmp, dict):
                 tmp[self.learner] = allowed_overrides[key](value)
             else:
@@ -391,7 +388,7 @@ class AbstractExperiment(ABC):
         learner_string += f"_LR={getattr(self, 'LEARNING_RATE')}_ARCH={getattr(self, 'ARCH')}"
         if self.learner == Learner.SAC:
             learner_string += f"_RBS={getattr(self, 'SAC_BUFFER')}"
-        if self.use_true_rew:
+        if self.use_true_rew and (self.curriculum.self_paced() or self.curriculum.self_paced_v2() or self.curriculum.rm_guided_self_paced()):
             learner_string += "_TRUEREWARDS"
         if self.use_product_cmdp:
             learner_string += "_PRODUCTCMDP"

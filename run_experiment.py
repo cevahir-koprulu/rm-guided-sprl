@@ -20,10 +20,8 @@ def main():
                         choices=["ppo", "sac"])
     parser.add_argument("--env", type=str, default="two_door_discrete_2d",
                         choices=["two_door_discrete_2d", "two_door_discrete_4d", "half_cheetah_3d"])
-    parser.add_argument("--target_type", type=str, default="narrow",
-                        choices=["narrow", "wide"])
     parser.add_argument("--seed", type=int, default=1)
-    parser.add_argument("--true_rewards", action="store_true", default=False)
+    parser.add_argument("--true_rewards", action="store_true", default=True)
     parser.add_argument("--product_cmdp", action="store_true", default=False)
     parser.add_argument("--train", action="store_true", default=False)
     parser.add_argument("--eval", action="store_true", default=False)

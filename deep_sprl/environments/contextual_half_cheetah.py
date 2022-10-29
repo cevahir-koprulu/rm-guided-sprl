@@ -8,12 +8,11 @@ from gym.envs.mujoco.half_cheetah_v3 import HalfCheetahEnv
 
 class ContextualHalfCheetah(gym.Env):
 
-    FLAG_1 = 2.
-    FLAG_2 = 6.
-    FLAG_3 = 8.
+    FLAG_1 = 1.
+    FLAG_2 = 4.
+    FLAG_3 = 7.
 
     def __init__(self, context=None, product_cmdp=False, rm_state_onehot=True):
-        # Icarte: "Note that the current position is key for our tasks"
         exclude_current_positions_from_observation = False
         self.env = gym.make("HalfCheetah-v3",
                             exclude_current_positions_from_observation=exclude_current_positions_from_observation).unwrapped
@@ -46,13 +45,6 @@ class ContextualHalfCheetah(gym.Env):
                 low_ext = np.concatenate((self.observation_space.low, np.array(0.)))
                 high_ext = np.concatenate((self.observation_space.high, np.array(self.rm_info["num_states"]-1)))
             self.observation_space = gym.spaces.Box(low=low_ext, high=high_ext)
-
-        # self.rewards = {0: {0: None, 1: None},
-        #                 1: {1: None, 2: None},
-        #                 2: {2: None, 3: None},
-        #                 3: {3: None, 4: 1000.},
-        #                 4: {4: None},
-        #                 }
 
         self.rewards = {0: {0: None, 1: 10.},
                         1: {1: None, 2: 100.},
@@ -97,22 +89,18 @@ class ContextualHalfCheetah(gym.Env):
             next_rm_state = 0
             if info['x_position'] > self._flags[0]:
                 next_rm_state = 1
-                # print(f"First flag passed with context {self.context} \n\tat step {self._num_step:4} || reward_ctrl: {reward:.5f} || reward_rm: {self.rewards[self._rm_state][next_rm_state]:6}")
         elif self._rm_state == 1:
             next_rm_state = 1
             if info['x_position'] > self._flags[1]:
                 next_rm_state = 2
-                # print(f"Second flag passed with context {self.context} \n\tat step {self._num_step:4} || reward_ctrl: {reward:.5f} || reward_rm: {self.rewards[self._rm_state][next_rm_state]:6}")
         elif self._rm_state == 2:
             next_rm_state = 2
             if info['x_position'] < self._flags[0]:
                 next_rm_state = 3
-                # print(f"Back to first flag with context {self.context} \n\tat step {self._num_step:4} || reward_ctrl: {reward:.5f} || reward_rm: {self.rewards[self._rm_state][next_rm_state]:6}")
         elif self._rm_state == 3:
             next_rm_state = 3
             if info['x_position'] > self._flags[2]:
                 next_rm_state = 4
-                # print(f"Third flag passed with context {self.context} \n\tat step {self._num_step:4} || reward_ctrl: {reward:.5f} || reward_rm: {self.rewards[self._rm_state][next_rm_state]:6}")
                 done = True
         elif self._rm_state == 4:
             next_rm_state = 4
@@ -128,18 +116,15 @@ class ContextualHalfCheetah(gym.Env):
         info["success"] = next_rm_state == self.rm_info["goal"]
         info["mission"] = next_rm_state
 
-        # if info["success"]:
-        #     print("Mission accomplished!")
-
         if self.product_cmdp:
             if self.rm_state_onehot:
                 _state_rm_ext = np.zeros(self.rm_info["num_states"])
                 _state_rm_ext[self._rm_state] = 1.
-                _next_state = np.concatenate((next_state, _state_rm_ext))
+                next_state = np.concatenate((next_state, _state_rm_ext))
             else:
-                _next_state = np.concatenate((next_state, np.array(self._rm_state)))
-        self._state = np.copy(_next_state)
-        return _next_state, reward, done, info
+                next_state = np.concatenate((next_state, np.array(self._rm_state)))
+        self._state = np.copy(next_state)
+        return next_state, reward, done, info
 
     def render(self, mode='human'):
         self.env.render(mode=mode)

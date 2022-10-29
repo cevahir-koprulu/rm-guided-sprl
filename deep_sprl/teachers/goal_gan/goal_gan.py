@@ -1,8 +1,4 @@
-import os
 import numpy as np
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import tensorflow as tf
 from queue import Queue
 from deep_sprl.teachers.abstract_teacher import AbstractTeacher
 from deep_sprl.teachers.goal_gan.generator import StateGAN, StateCollection
@@ -12,13 +8,6 @@ class GoalGAN(AbstractTeacher):
 
     def __init__(self, mins, maxs, state_noise_level, success_distance_threshold, update_size, n_rollouts=2,
                  goid_lb=0.25, goid_ub=0.75, p_old=0.2, pretrain_samples=None):
-        tf_config = tf.ConfigProto(
-            allow_soft_placement=True,
-            inter_op_parallelism_threads=1,
-            intra_op_parallelism_threads=1)
-        # Prevent tensorflow from taking all the gpu memory
-        tf_config.gpu_options.allow_growth = True
-        self.tf_session = tf.Session(config=tf_config)
         self.gan = StateGAN(
             state_size=len(mins),
             evaluater_size=1,
@@ -28,10 +17,8 @@ class GoalGAN(AbstractTeacher):
             generator_layers=[256, 256],
             discriminator_layers=[128, 128],
             noise_size=mins.shape[0],
-            tf_session=self.tf_session,
             configs={"supress_all_logging": True}
         )
-        self.tf_session.run(tf.initialize_local_variables())
         self.replay_noise = state_noise_level * (maxs - mins)
         self.success_buffer = StateCollection(1, success_distance_threshold * np.linalg.norm(maxs - mins))
 
@@ -44,8 +31,14 @@ class GoalGAN(AbstractTeacher):
         self.goid_lb = goid_lb
         self.goid_ub = goid_ub
 
+        ##For testing
+        self.context2show = []
+
         self.pending_contexts = {}
         self.context_queue = Queue()
+        self.outer_iter = 0
+        self.ready2save = False
+        self.contexts2save = None
 
         if pretrain_samples is not None:
             self.gan.pretrain(pretrain_samples)
@@ -66,10 +59,12 @@ class GoalGAN(AbstractTeacher):
                 # Store the contexts in the buffer for being sampled
                 for i in range(0, self.n_rollouts - 1):
                     self.context_queue.put(context.copy())
+
             else:
                 context = self.success_buffer.sample(size=1, replay_noise=self.replay_noise)[0, :]
         else:
             context = self.context_queue.get()
+            self.context2show.append(context.copy())
 
         return context
 
@@ -96,11 +91,32 @@ class GoalGAN(AbstractTeacher):
 
         if len(self.contexts) >= self.update_size:
             labels = np.array(self.labels, dtype=np.float)[:, None]
+
+            self.outer_iter += 1
+            self.ready2save = True
+            self.contexts2save = self.context2show.copy()
+
             if np.any(labels):
-                print("Training GoalGAN with " + str(len(self.contexts)) + " contexts")
+                print("Training GoalGAN with " + str(len(self.contexts)) + " contexts -- outer iteration: " + str(
+                    self.outer_iter))
                 self.gan.train(np.array(self.contexts), labels, 250)
+                par = np.array(self.context2show)
+                # axes = plt.gca()
+                # axes.set_xlim([-2.0, 7.0])
+                # axes.set_ylim([-2.0, 7.0])
+                # plt.scatter(par[:, 0], par[:, 1])
+                # plt.savefig('test_goal_gan.png')
+                self.context2show = []
+
+
             else:
                 print("No positive samples in " + str(len(self.contexts)) + " contexts - skipping GoalGAN training")
 
             self.contexts = []
             self.labels = []
+
+    def save(self, path):
+        pass
+
+    def load(self, path):
+        pass

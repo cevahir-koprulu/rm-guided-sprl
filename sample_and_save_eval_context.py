@@ -20,8 +20,8 @@ def sample_contexts(setting, num_contexts):
 def main():
     num_contexts = 100
     eval_context_dir = f"{Path(os.getcwd())}/eval_contexts"
-    env = "two_door_discrete_4d"
-    target_type = "narrow"
+    env = "two_door_discrete_2d"
+    target_type = "wide"
     if not os.path.exists(eval_context_dir):
         os.makedirs(eval_context_dir)
     exp = None
@@ -43,6 +43,7 @@ def main():
 
     contexts = sample_contexts(setting=target_setting,
                                num_contexts=num_contexts)
+    print(contexts)
     np.save(f"{eval_context_dir}/{env}_{target_type}_eval_contexts", contexts)
 
 

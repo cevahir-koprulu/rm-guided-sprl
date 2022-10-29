@@ -1,12 +1,7 @@
 import os
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import gym
 import numpy as np
-import tensorflow as tf
-tf.get_logger().setLevel('INFO')
-tf.autograph.set_verbosity(0)
-
+import torch
 from deep_sprl.experiments.abstract_experiment import AbstractExperiment, Learner
 from deep_sprl.teachers.alp_gmm import ALPGMM, ALPGMMWrapper
 from deep_sprl.teachers.goal_gan import GoalGAN, GoalGANWrapper
@@ -18,8 +13,6 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 
 class TwoDoorDiscrete4DExperiment(AbstractExperiment):
-    PRODUCT_CMDP = True
-
     LOWER_CONTEXT_BOUNDS = np.array([-4., -4., -4., -4.])
     UPPER_CONTEXT_BOUNDS = np.array([4., 4., 4., 4.])
 
@@ -33,6 +26,7 @@ class TwoDoorDiscrete4DExperiment(AbstractExperiment):
                              }
     TARGET_TYPE = "narrow"
 
+    ARCH = 64
     DISCOUNT_FACTOR = 0.98
     STD_LOWER_BOUND = np.array([4e-3, 4e-3, 4e-3, 4e-3])
     KL_THRESHOLD = 8000.
@@ -47,9 +41,10 @@ class TwoDoorDiscrete4DExperiment(AbstractExperiment):
     NUM_CONTEXT_UPDATES = 200
     LAM = 0.99
 
-    # SAC Parameters
     LEARNING_RATE = 0.0003
-    REPLAY_BUFFER_SIZE = 10000
+
+    # SAC Parameters
+    SAC_BUFFER = 60000
 
     AG_P_RAND = {Learner.PPO: 0.3, Learner.SAC: 0.1}
     AG_FIT_RATE = {Learner.PPO: 100, Learner.SAC: 200}
@@ -64,7 +59,7 @@ class TwoDoorDiscrete4DExperiment(AbstractExperiment):
         self.eval_env, self.vec_eval_env = self.create_environment(evaluation=True)
 
     def create_environment(self, evaluation=False):
-        if self.PRODUCT_CMDP:
+        if self.use_product_cmdp:
             env = gym.make("ContextualTwoDoorDiscrete4DProduct-v1")
         else:
             env = gym.make("ContextualTwoDoorDiscrete4D-v1")
@@ -100,12 +95,30 @@ class TwoDoorDiscrete4DExperiment(AbstractExperiment):
         return env, DummyVecEnv([lambda: env])
 
     def create_learner_params(self):
-        return dict(common=dict(gamma=self.DISCOUNT_FACTOR, seed=self.seed, verbose=0,
-                                policy_kwargs=dict(layers=[64, 64], act_fun=tf.tanh)),
-                    ppo=dict(n_steps=self.STEPS_PER_ITER, noptepochs=8, nminibatches=32, lam=self.LAM,
-                             max_grad_norm=None, vf_coef=1.0, cliprange_vf=-1, ent_coef=0., learning_rate=0.000025),
-                    sac=dict(learning_rate=self.LEARNING_RATE, buffer_size=self.REPLAY_BUFFER_SIZE,
-                             learning_starts=500, batch_size=64, train_freq=5, target_entropy="auto"))
+        return dict(common=dict(gamma=self.DISCOUNT_FACTOR,
+                                seed=self.seed,
+                                verbose=0,
+                                policy_kwargs=dict(net_arch=[self.ARCH, self.ARCH],
+                                                   activation_fn=torch.nn.Tanh,
+                                                   ),
+                                ),
+                    ppo=dict(n_steps=self.STEPS_PER_ITER,
+                             noptepochs=8,
+                             nminibatches=32,
+                             lam=self.LAM,
+                             max_grad_norm=None,
+                             vf_coef=1.0,
+                             cliprange_vf=-1,
+                             ent_coef=0.,
+                             learning_rate=self.LEARNING_RATE  # 0.000025,
+                             ),
+                    sac=dict(learning_rate=self.LEARNING_RATE,
+                             buffer_size=self.SAC_BUFFER,
+                             learning_starts=500,
+                             batch_size=64,
+                             train_freq=5,
+                             target_entropy="auto",
+                             ))
 
     def create_experiment(self):
         timesteps = self.NUM_CONTEXT_UPDATES * self.STEPS_PER_ITER
@@ -150,10 +163,18 @@ class TwoDoorDiscrete4DExperiment(AbstractExperiment):
     def get_env_name(self):
         return "two_door_discrete_4d_"+self.TARGET_TYPE
 
-    def evaluate_learner(self, path, num_context=100, num_run=1):
+    def evaluate_learner(self, path):
+        num_context = None
+        num_run = 1
+
         model_load_path = os.path.join(path, "model.zip")
         model = self.learner.load_for_evaluation(model_load_path, self.vec_eval_env)
-        eval_contexts = np.load(f"../../eval_contexts\{self.get_env_name()}_eval_contexts.npy")
+        eval_contexts = np.load(f"{os.getcwd()}/eval_contexts/{self.get_env_name()}_eval_contexts.npy")
+
+        if num_context is None:
+            num_context = eval_contexts.shape[0]
+
+        num_succ_eps_per_c = np.zeros((num_context, 1))
         for i in range(num_context):
             context = eval_contexts[i, :]
             for j in range(num_run):
@@ -163,8 +184,13 @@ class TwoDoorDiscrete4DExperiment(AbstractExperiment):
                 while not done:
                     action = model.step(obs, state=None, deterministic=False)
                     obs, rewards, done, infos = self.vec_eval_env.step(action)
+                if infos[0]["success"]:
+                    num_succ_eps_per_c[i, 0] += 1./num_run
+
+        print(f"Successful Eps: {100*np.mean(num_succ_eps_per_c)}%")
         disc_rewards = self.eval_env.get_buffer()
         ave_disc_rewards = []
         for j in range(num_context):
             ave_disc_rewards.append(np.average(disc_rewards[j*num_run:(j+1)*num_run]))
-        return ave_disc_rewards, eval_contexts, self.eval_env.teacher.mean(), self.eval_env.teacher.covariance_matrix()
+        return ave_disc_rewards, eval_contexts[:num_context, :], \
+               self.eval_env.teacher.mean(), self.eval_env.teacher.covariance_matrix(), num_succ_eps_per_c
