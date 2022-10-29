@@ -33,7 +33,7 @@ python run_experiment.py --env two_door_discrete_2d --type rm_guided_self_paced 
 python run_experiment.py --env two_door_discrete_2d --type self_paced --target_type wide --PRODUCTCMDP --ZETA 1.2 --seed 1 # Intermediate
 python run_experiment.py --env two_door_discrete_2d --type self_paced --target_type wide --PRODUCTCMDP --ZETA 1.2 --seed 1 # SPDL
 python run_experiment.py --env two_door_discrete_2d --type default --target_type wide --PRODUCTCMDP --seed 1 # Default*
-python run_experiment.py --env two_door_discrete_2d --type default --target_type wide --PRODUCTCMDP --seed 1 # Default
+python run_experiment.py --env two_door_discrete_2d --type default --target_type wide --seed 1 # Default
 python run_experiment.py --env two_door_discrete_2d --type goal_gan --target_type wide --PRODUCTCMDP --seed 1 # GoalGAN
 ```
 The results demonstrated in our submitted paper can be run via *run_experiments.py* which include 
