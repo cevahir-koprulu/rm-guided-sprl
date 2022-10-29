@@ -281,6 +281,8 @@ class ExperimentCallback:
                 data_tpl += tuple(context_mean.tolist())
                 data_tpl += tuple(context_std.tolist())
 
+            print(self.format % data_tpl)
+
             if self.iteration % self.save_interval == 0:
                 iter_log_dir = os.path.join(self.log_dir, "iteration-" + str(self.iteration))
                 os.makedirs(iter_log_dir, exist_ok=True)
