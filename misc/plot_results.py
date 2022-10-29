@@ -15,20 +15,21 @@ def get_results(base_dir, iterations, get_success=False):
     expected = []
     success = []
 
-    if os.path.exists(os.path.join(base_dir, "iteration-0", "performance.npy")):
-        for iteration in iterations:
-            perf_file = os.path.join(base_dir, f"iteration-{iteration}", "performance.npy")
-            if os.path.exists(perf_file):
-                results = np.load(perf_file)
-                disc_rewards = results[:, 1]
-                expected.append(np.mean(disc_rewards))
+    for iteration in iterations:
+        perf_file = os.path.join(base_dir, f"iteration-{iteration}", "performance.npy")
+        if os.path.exists(perf_file):
+            results = np.load(perf_file)
+            disc_rewards = results[:, 1]
+            expected.append(np.mean(disc_rewards))
 
-                if get_success:
-                    successful_eps = results[:, -1]
-                    success.append(np.mean(successful_eps))
-    else:
-        raise Exception(f"No evaluation data found: {os.path.join(base_dir, 'iteration-0', 'performance.npy')}")
-
+            if get_success:
+                successful_eps = results[:, -1]
+                success.append(np.mean(successful_eps))
+        else:
+            print(f"No evaluation data found: {os.path.join(base_dir, 'iteration-0', 'performance.npy')}")
+            expected = []
+            success = []
+            break
     return expected, success
 
 
@@ -86,6 +87,9 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
                 iterations=iterations,
                 get_success=plot_success,
             )
+            if len(expected_seed) == 0:
+                continue
+
             expected.append(expected_seed)
             if algorithm[:8] != "goal_gan" and algorithm[:7] != "default":
                 dist_stats_seed = get_dist_stats(
@@ -181,8 +185,7 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
 def main():
     base_log_dir = f"{Path(os.getcwd()).parent}/logs"
     num_updates_per_iteration = 5
-    # seeds = ["1", "2", "3", "4", "5"]
-    seeds = ["1", "2", "4"]
+    seeds = ["1", "2", "3", "4", "5"]
     env = "half_cheetah_3d_narrow"
     # env = "two_door_discrete_2d_wide"
     # env = "two_door_discrete_4d_narrow"
@@ -215,7 +218,7 @@ def main():
             "SPRL": {
                 "algorithm": "self_paced",
                 "label": "SPDL",
-                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
+                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=4.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS",
                 "color": "green",
             },
             "Intermediate": {
@@ -227,7 +230,7 @@ def main():
             "RM-guided SPRL": {
                 "algorithm": "rm_guided_self_paced",
                 "label": "RM-guided SPRL",
-                "model": "sac_ALPHA_OFFSET=50_MAX_KL=0.05_OFFSET=30_ZETA=1.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
+                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=1.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
                 "color": "blue",
             },
         },

@@ -80,44 +80,90 @@ def main():
     base_log_dir = os.path.join(Path(os.getcwd()).parent, "logs")
     seeds = ["1", "2", "3", "4", "5"]
     num_iters = 200
-    env = "two_door_discrete_2d_wide"
+    # env = "two_door_discrete_2d_wide"
+    # env = "two_door_discrete_4d_narrow"
+    env = "half_cheetah_3d_narrow"
 
     settings = {
-        # "two_door_discrete_2d_narrow":
-        #     {
-        #         "context_dim": 2,
-        #     },
-
         "two_door_discrete_2d_wide":
             {
                 "context_dim": 2,
             },
 
-        # "two_door_discrete_4d_narrow":
-        #     {
-        #         "context_dim": 4,
-        #     },
+        "two_door_discrete_4d_narrow":
+            {
+                "context_dim": 4,
+            },
+
+        "half_cheetah_3d_narrow": 
+            {
+                "context_dim": 3,
+            },
     }
 
 
     algorithms = {
-        "rm_guided": {
-            "algorithm": "rm_guided_self_paced",
-            "name": "RM-guided SPRL",
-            "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=0.96_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
-            "target_conv": 18,  # update at which the distribution converges to the target
+        "two_door_discrete_2d_wide": {
+            "rm_guided": {
+                "algorithm": "rm_guided_self_paced",
+                "name": "RM-guided SPRL",
+                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=0.96_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+                "target_conv": 18,  # update at which the distribution converges to the target
+            },
+            "intermediate": {
+                "algorithm": "self_paced",
+                "name": "Intermediate SPRL",
+                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+                "target_conv": 26,  # update at which the distribution converges to the target
+            },
+            "self_paced": {
+                "algorithm": "self_paced",
+                "name": "SPDL",
+                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
+                "target_conv": 21,  # update at which the distribution converges to the target
+            },
         },
-        "intermediate": {
-            "algorithm": "self_paced",
-            "name": "Intermediate SPRL",
-            "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
-            "target_conv": 26,  # update at which the distribution converges to the target
+
+        "two_door_discrete_4d_narrow": {
+            "rm_guided": {
+                "algorithm": "rm_guided_self_paced",
+                "name": "RM-guided SPRL",
+                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.0_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
+                "target_conv": 14,  # update at which the distribution converges to the target
+            },
+            "intermediate": {
+                "algorithm": "self_paced",
+                "name": "Intermediate SPRL",
+                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDPP",
+                "target_conv": 36,  # update at which the distribution converges to the target
+            },
+            "self_paced": {
+                "algorithm": "self_paced",
+                "name": "SPDL",
+                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000",
+                "target_conv": 35,  # update at which the distribution converges to the target
+            },
         },
-        "self_paced": {
-            "algorithm": "self_paced",
-            "name": "SPDL",
-            "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
-            "target_conv": 21,  # update at which the distribution converges to the target
+
+        "half_cheetah_3d_narrow": {
+            "rm_guided": {
+                "algorithm": "rm_guided_self_paced",
+                "name": "RM-guided SPRL",
+                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=1.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
+                "target_conv": 22,  # update at which the distribution converges to the target
+            },
+            "intermediate": {
+                "algorithm": "self_paced",
+                "name": "Intermediate SPRL",
+                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=4.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
+                "target_conv": 39,  # update at which the distribution converges to the target
+            },
+        #     "self_paced": {
+        #         "algorithm": "self_paced",
+        #         "name": "SPDL",
+        #         "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
+        #         "target_conv": -,  # update at which the distribution converges to the target
+        #     },
         },
     }
 
@@ -127,7 +173,7 @@ def main():
         num_iters=num_iters,
         env=env,
         setting=settings[env],
-        algorithms=algorithms)
+        algorithms=algorithms[env])
 
 
 if __name__ == "__main__":
