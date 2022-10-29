@@ -1,7 +1,9 @@
 import os
+import sys
 import numpy as np
 from pathlib import Path
 from scipy.stats import ttest_ind, sem
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from deep_sprl.util.gaussian_torch_distribution import GaussianTorchDistribution
 
 
@@ -75,26 +77,26 @@ def run_welch_t_test(base_log_dir, seeds, num_iters, env, setting, algorithms):
 
 
 def main():
-    base_log_dir = f"{Path(os.getcwd()).parent}\\logs"
+    base_log_dir = os.path.join(Path(os.getcwd()).parent, "logs")
     seeds = ["1", "2", "3", "4", "5"]
     num_iters = 200
-    env = "two_door_discrete_4d_narrow"
+    env = "two_door_discrete_2d_wide"
 
     settings = {
-        "two_door_discrete_2d_narrow":
-            {
-                "context_dim": 2,
-            },
+        # "two_door_discrete_2d_narrow":
+        #     {
+        #         "context_dim": 2,
+        #     },
 
         "two_door_discrete_2d_wide":
             {
                 "context_dim": 2,
             },
 
-        "two_door_discrete_4d_narrow":
-            {
-                "context_dim": 4,
-            },
+        # "two_door_discrete_4d_narrow":
+        #     {
+        #         "context_dim": 4,
+        #     },
     }
 
 
@@ -102,20 +104,20 @@ def main():
         "rm_guided": {
             "algorithm": "rm_guided_self_paced",
             "name": "RM-guided SPRL",
-            "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_PRODUCT_CMDP=True_ZETA=1.0_LR=0.0003_RBS=60000",
-            "target_conv": 14,  # update at which the distribution converges to the target
+            "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=0.96_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+            "target_conv": 18,  # update at which the distribution converges to the target
         },
         "intermediate": {
             "algorithm": "self_paced",
             "name": "Intermediate SPRL",
-            "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_PRODUCT_CMDP=True_ZETA=1.2_LR=0.0003_RBS=60000",
-            "target_conv": 36,  # update at which the distribution converges to the target
+            "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+            "target_conv": 26,  # update at which the distribution converges to the target
         },
         "self_paced": {
             "algorithm": "self_paced",
             "name": "SPDL",
-            "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_PRODUCT_CMDP=False_ZETA=1.2_LR=0.0003_RBS=60000",
-            "target_conv": 35,  # update at which the distribution converges to the target
+            "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
+            "target_conv": 21,  # update at which the distribution converges to the target
         },
     }
 

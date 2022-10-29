@@ -6,73 +6,78 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from matplotlib import rc
 from matplotlib.colors import ListedColormap
-from deep_sprl.util.parameter_parser import parse_parameters
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from deep_sprl.experiments import TwoDoorDiscrete2DExperiment, TwoDoorDiscrete4DExperiment, CurriculumType
 
 rc('font', **{'family': 'serif', 'serif': ['Times New Roman']})
 
 base_log_dir = "logs"
-picture_dir = "pictures"
+picture_dir = "figures"
 
 
 def main():
     learner = "sac"
-    env = "two_door_discrete_4d"
-    target_type = "narrow"
+    env = "two_door_discrete_2d"
+    target_type = "wide"
     seeds = [1, 2, 3, 4, 5]
     seed_colors = ['crimson', 'chocolate', 'lime', 'midnightblue', 'purple']
     model_iter = 195
     context_no = 0
-    contexts = np.load(f"{Path(os.getcwd()).parent}/eval_contexts/{env}_{target_type}_eval_contexts.npy")
+    contexts = np.load(os.path.join(Path(os.getcwd()).parent, "eval_contexts", f"{env}_{target_type}_eval_contexts.npy"))
     context = contexts[context_no]
 
     picture_base = os.path.join(Path(os.getcwd()).parent, picture_dir)
     log_dir = os.path.join(Path(os.getcwd()).parent, base_log_dir, f"{env}_{target_type}")
     algorithms = {
+        "default": {
+            "name": "default",
+            "model": "sac_LR=0.0003_ARCH=256_RBS=60000",
+            },
+        "default(P)": {
+            "name": "default",
+            "model": "sac_LR=0.0003_ARCH=256_RBS=60000_PRODUCTCMDP",
+            },
         "goal_gan": {
             "name": "goal_gan",
-            "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.1_GG_P_OLD=0.3_PRODUCT_CMDP=False_LR=0.0003_RBS=60000",
-            "PRODUCT_CMDP": 'False'},
+            "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.05_GG_P_OLD=0.2_LR=0.0003_ARCH=256_RBS=60000",
+            },
         "self_paced": {
             "name": "self_paced",
-            "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_PRODUCT_CMDP=False_ZETA=1.2_LR=0.0003_RBS=60000",
-            "PRODUCT_CMDP": 'False'},
+            "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
+            },
         "rm_guided": {
             "name": "rm_guided_self_paced",
-            "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_PRODUCT_CMDP=True_ZETA=1.0_LR=0.0003_RBS=60000",
-            "PRODUCT_CMDP": 'True'},
+            "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=0.96_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+            },
         "intermediate": {
             "name": "self_paced",
-            "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_PRODUCT_CMDP=True_ZETA=1.2_LR=0.0003_RBS=60000",
-            "PRODUCT_CMDP": 'True'}
+            "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+            }
     }
 
     algos = list(algorithms.keys())
     for algo in algos:
         cur_algo = algorithms[algo]["name"]
         model_name = algorithms[algo]["model"]
-        PRODUCT_CMDP = algorithms[algo]["PRODUCT_CMDP"]
+        PRODUCTCMDP = model_name[-len("PRODUCTCMDP"):] == "PRODUCTCMDP"
 
         p_door1 = round((context[0] + 4.) / 8 * 40)
         p_door2 = round((context[1] + 4.) / 8 * 40)
-        parameters = {"PRODUCT_CMDP": PRODUCT_CMDP}
-        if env[-2:] == "2d":
-            exp = TwoDoorDiscrete2DExperiment(base_log_dir, cur_algo, learner, parameters, 1)
+        if env[-2:] == "2d":    
+            exp = TwoDoorDiscrete2DExperiment(base_log_dir, cur_algo, learner, {}, 1, use_product_cmdp=PRODUCTCMDP)
             p_box = round((-2 + 4.) / 8 * 40)
             p_goal = round((0. + 4.) / 8 * 40)
         elif env[-2:] == "4d":
-            exp = TwoDoorDiscrete4DExperiment(base_log_dir, cur_algo, learner, parameters, 1)
+            exp = TwoDoorDiscrete4DExperiment(base_log_dir, cur_algo, learner, {}, 1, use_product_cmdp=PRODUCTCMDP)
             p_box = round((context[2] + 4.) / 8 * 40)
             p_goal = round((context[3] + 4.) / 8 * 40)
         else:
             raise ValueError("Invalid environment type")
-        exp.curriculum = CurriculumType.from_string(cur_algo)
         type_log_dir = os.path.join(log_dir, cur_algo, model_name)
 
         N_GRID = 41
         context_discrete = [p_door1, p_door2, p_box, p_goal]
-        door_widths = [5, 5]
+        door_widths = [2, 2]
         box_shape = [5, 5]
         start = np.array([20, 35],
                          dtype=int)
@@ -153,6 +158,7 @@ def main():
         plt.savefig(os.path.join(picture_base,
                                  f"{env}_{target_type}_{algo}.pdf"),
                     bbox_inches='tight', pad_inches=0)
+        plt.close()
         # plt.savefig(os.path.join(picture_base, f"{env}_{target_type}.pdf"),  bbox_inches='tight', pad_inches=0)
 
 

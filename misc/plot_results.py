@@ -1,6 +1,5 @@
 import os
 import sys
-import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
@@ -10,7 +9,6 @@ from scipy.stats import norm
 from pathlib import Path
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from deep_sprl.util.gaussian_torch_distribution import GaussianTorchDistribution
-
 
 
 def get_results(base_dir, iterations, get_success=False):
@@ -51,8 +49,6 @@ def get_dist_stats(base_dir, iterations, context_dim=2):
 
 
 def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, algorithms, plot_success, figname_extra):
-    # rc('font', **{'family': 'serif', 'serif': ['Times New Roman']})
-
     plt.rcParams['font.family'] = 'serif'
     plt.rcParams['font.serif'] = ['Times New Roman'] + plt.rcParams['font.serif']
 
@@ -184,85 +180,156 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
 
 def main():
     base_log_dir = f"{Path(os.getcwd()).parent}/logs"
-    num_updates_per_iteration = 10  # 5
-    seeds = ["1", "2", "3", "4", "5"]
+    num_updates_per_iteration = 5
+    # seeds = ["1", "2", "3", "4", "5"]
+    seeds = ["1", "2", "4"]
     env = "half_cheetah_3d_narrow"
+    # env = "two_door_discrete_2d_wide"
     figname_extra = "" 
-    plot_success = True
+    plot_success = False
 
     algorithms = {
-        # "RM-guided SPRL 1": {
-        #     "algorithm": "rm_guided_self_paced",
-        #     "label": "(ZETA=0.1)",
-        #     "model": "sac_ALPHA_OFFSET=50_MAX_KL=0.05_OFFSET=30_ZETA=0.1_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
-        #     "color": "red",
+        #############################
+        ## HalfCheetah-v3 & Narrow ##
+        #############################
+        "GoalGAN": {
+            "algorithm": "goal_gan",
+            "label": "GoalGAN",
+            "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.1_GG_P_OLD=0.3_LR=0.001_ARCH=256_RBS=250000",
+            "color": "gold",
+        },
+        "Default": {
+            "algorithm": "default",
+            "label": "Default",
+            "model": "sac_LR=0.001_ARCH=256_RBS=250000",
+            "color": "cyan",
+        },
+        "Default(P)": {
+            "algorithm": "default",
+            "label": "Default*",
+            "model": "sac_LR=0.001_ARCH=256_RBS=250000_PRODUCTCMDP",
+            "color": "magenta",
+        },
+        # "SPRL": {
+        #     "algorithm": "self_paced",
+        #     "label": "SPDL",
+        #     "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
+        #     "color": "green",
         # },
-        "RM-guided SPRL 2": {
+        "Intermediate": {
+            "algorithm": "self_paced",
+            "label": "Intermediate SPRL",
+            "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=4.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
+            "color": "red",
+        },
+        "RM-guided SPRL": {
             "algorithm": "rm_guided_self_paced",
-            "label": "(ZETA=1.0)",
+            "label": "RM-guided SPRL",
             "model": "sac_ALPHA_OFFSET=50_MAX_KL=0.05_OFFSET=30_ZETA=1.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
             "color": "blue",
         },
-        # "SPRL": {
-        #     "algorithm": "self_paced_with_cvar",
-        #     "label": "self_paced_with_cvar_ZETA=54.0",
-        #     "model": "ppo_ALPHA_OFFSET=10_MAX_KL=0.001_OFFSET=5_ZETA=54.0_NSTEPS=10240_NBATCH=160_ARCH=256",
-        #     "color": "red",
-        # },
-        # "Default (P)": {
-        #     "algorithm": "self_paced_with_cvar",
-        #     "label": "self_paced_with_cvar_ZETA=54.0",
-        #     "model": "ppo_ALPHA_OFFSET=10_MAX_KL=0.001_OFFSET=5_ZETA=54.0_NSTEPS=10240_NBATCH=160_ARCH=256",
-        #     "color": "red",
+
+
+        ########################
+        ## Two-door 2D & Wide ##
+        ########################
+        # "GoalGAN": {
+        #     "algorithm": "goal_gan",
+        #     "label": "GoalGAN",
+        #     "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.05_GG_P_OLD=0.2_LR=0.0003_ARCH=256_RBS=60000",
+        #     "color": "gold",
         # },
         # "Default": {
-        #     "algorithm": "self_paced_with_cvar",
-        #     "label": "self_paced_with_cvar_ZETA=54.0",
-        #     "model": "ppo_ALPHA_OFFSET=10_MAX_KL=0.001_OFFSET=5_ZETA=54.0_NSTEPS=10240_NBATCH=160_ARCH=256",
+        #     "algorithm": "default",
+        #     "label": "Default",
+        #     "model": "sac_LR=0.0003_ARCH=256_RBS=60000",
+        #     "color": "cyan",
+        # },
+        # "Default(P)": {
+        #     "algorithm": "default",
+        #     "label": "Default*",
+        #     "model": "sac_LR=0.0003_ARCH=256_RBS=60000_PRODUCTCMDP",
+        #     "color": "magenta",
+        # },
+        # "SPRL": {
+        #     "algorithm": "self_paced",
+        #     "label": "SPDL",
+        #     "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
+        #     "color": "green",
+        # },
+        # "Intermediate": {
+        #     "algorithm": "self_paced",
+        #     "label": "Intermediate SPRL",
+        #     "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
         #     "color": "red",
         # },
+        # "RM-guided SPRL": {
+        #     "algorithm": "rm_guided_self_paced",
+        #     "label": "RM-guided SPRL",
+        #     "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=0.96_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+        #     "color": "blue",
+        # },
+
+        ##########################
+        ## Two-door 4D & Narrow ##
+        ##########################
         # "GoalGAN": {
-        #     "algorithm": "self_paced_with_cvar",
-        #     "label": "self_paced_with_cvar_ZETA=54.0",
-        #     "model": "ppo_ALPHA_OFFSET=10_MAX_KL=0.001_OFFSET=5_ZETA=54.0_NSTEPS=10240_NBATCH=160_ARCH=256",
+        #     "algorithm": "goal_gan",
+        #     "label": "GoalGAN",
+        #     "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.1_GG_P_OLD=0.3_LR=0.0003_ARCH=64_RBS=60000",
+        #     "color": "gold",
+        # },
+        # "Default": {
+        #     "algorithm": "default",
+        #     "label": "Default",
+        #     "model": "sac_LR=0.0003_ARCH=64_RBS=60000",
+        #     "color": "cyan",
+        # },
+        # "Default(P)": {
+        #     "algorithm": "default",
+        #     "label": "Default*",
+        #     "model": "sac_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
+        #     "color": "magenta",
+        # },
+        # "SPDL": {
+        #     "algorithm": "self_paced",
+        #     "label": "SPDL",
+        #     "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000",
+        #     "color": "green",
+        # },
+        # "Intermediate": {
+        #     "algorithm": "self_paced",
+        #     "label": "Intermediate SPRL",
+        #     "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
         #     "color": "red",
+        # },
+        # "RM-guided": {
+        #     "algorithm": "rm_guided_self_paced",
+        #     "label": "RM-guided SPRL",
+        #     "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.0_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
+        #     "color": "blue",
         # },
     }
 
     settings = {
-        "two_door_discrete_2d_narrow":
-            {
-                "context_dim": 2,
-                "num_iters": 200,
-                "fontsize": 12,
-                "figsize": (5 * 3, 2.5),
-                "grid_shape": (1, 3),
-                "bbox_to_anchor": (.5, 1.21),
-                "axes_info": {
-                    "ylabel": ['Param-1: Door 1 Position',
-                               'Param-2: Door 2 Position',
-                               'Expected Discounter Return'],
-                    "ylim": [[-.7, 2.2],
-                             [-.7, 2.2],
-                             [-.1, 4.]],
-                    },
-            },
-
         "two_door_discrete_2d_wide":
             {
                 "context_dim": 2,
                 "num_iters": 200,
                 "fontsize": 12,
-                "figsize": (5 * 3, 2.5),
-                "grid_shape": (1, 3),
-                "bbox_to_anchor": (.5, 1.21),
+                "figsize": (5 * (3+1*plot_success), 2.5),
+                "grid_shape": (1, (3+1*plot_success)),
+                "bbox_to_anchor": (.5, 1.25),
                 "axes_info": {
                     "ylabel": ['Param-1: Door 1 Position',
                                'Param-2: Door 2 Position',
-                               'Expected Discounter Return'],
+                               'Expected Discounted Return',
+                                'Successful Episodes',
+                                ],
                     "ylim": [[-.5, 2.2],
                              [-.5, 2.2],
-                             [-.1, 4.]],
+                             [-.1, 4.],
+                             [-0.05, 1.05]],
                     },
             },
 
@@ -270,21 +337,23 @@ def main():
             {
                 "context_dim": 4,
                 "num_iters": 200,
-                "fontsize": 8,
-                "figsize": (5, 2.1*5),
-                "grid_shape": (5, 1),
-                "bbox_to_anchor": (.5, 1.05),
+                "fontsize": 12,
+                "figsize": (5, 2.1*(5+1*plot_success)),
+                "grid_shape": ((5+1*plot_success), 1),
+                "bbox_to_anchor": (.5, 1.07),
                 "axes_info": {
                     "ylabel": ['Param-1: Door 1 Position',
                                'Param-2: Door 2 Position',
                                'Param-3: Box Position',
                                'Param-4: Goal Position',
-                               'Expected Discounter Return'],
+                               'Expected Discounted Return',
+                               "Successful Episode"],
                     "ylim": [[-.5, 2.2],
                              [-.5, 2.2],
                              [-2.2, 1],
                              [-2.2, 1],
-                             [-.1, 4.5]],
+                             [-.1, 4.5],
+                             [-0.1, 1.1]],
                 }
             },
 
@@ -292,7 +361,7 @@ def main():
             {
                 "context_dim": 3,
                 "num_iters": 200,
-                "fontsize": 12,
+                "fontsize": 8,
                 "figsize": (5, 2.1*(4+1*plot_success)),
                 "grid_shape": (4+1*plot_success, 1),
                 "bbox_to_anchor": (.5, 1.05),
@@ -300,7 +369,7 @@ def main():
                     "ylabel": ['Param-1: Flag 1',
                                'Param-2: Flag 2',
                                'Param-3: Flag 3',
-                               'Expected Disc. Return',
+                               'Expected Discounted Return',
                                'Successful Episodes',
                                ],
                     "ylim": [[-0.1, 4.1],
