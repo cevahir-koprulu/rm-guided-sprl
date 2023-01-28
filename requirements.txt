@@ -1,8 +1,9 @@
-stable-baselines3==1.4.0
-scipy>=1.7.3
-pillow==9.2.0
-numpy==1.23.4
-pytorch==1.10.2
-scikit-learn==1.1.2
-gym==0.19.0
-pygame==2.1.2
+gym==0.21.0
+stable-baselines3
+scipy
+pillow
+numpy
+pytorch
+scikit-learn
+gym
+pygame
