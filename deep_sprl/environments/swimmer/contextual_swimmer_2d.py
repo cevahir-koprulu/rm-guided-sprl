@@ -1,12 +1,11 @@
-import numpy as np
 from gym import Env
-from .contextual_half_cheetah import ContextualHalfCheetah
+from .contextual_swimmer import ContextualSwimmer
 
 
-class ContextualHalfCheetah3D(Env):
+class ContextualSwimmer2D(Env):
 
     def __init__(self, context=None):
-        self.env = ContextualHalfCheetah(context=None, product_cmdp=False, rm_state_onehot=False)
+        self.env = ContextualSwimmer(context=None, product_cmdp=False, rm_state_onehot=False)
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
 

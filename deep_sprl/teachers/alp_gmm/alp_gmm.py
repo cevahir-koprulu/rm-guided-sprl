@@ -173,3 +173,9 @@ class ALPGMM(AbstractTeacher):
     def dump(self, dump_dict):
         dump_dict.update(self.bk)
         return dump_dict
+
+    def save(self, path):
+        pass
+
+    def load(self, path):
+        pass
