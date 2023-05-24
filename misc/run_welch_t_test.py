@@ -7,29 +7,51 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from deep_sprl.util.gaussian_torch_distribution import GaussianTorchDistribution
 
 
-def get_dist_stats(base_dir, num_updates, context_dim=2):
-    dist_stats = []
-    for iteration in range(num_updates):
-        dist = os.path.join(base_dir, "iteration-%d" % int(iteration*5), "context_dist.npy")
-        dist = GaussianTorchDistribution.from_weights(context_dim, np.load(dist))
-        stats = []
-        for c_dim in range(context_dim):
-            stats.append(dist.mean()[c_dim])
-        for c_dim in range(context_dim):
-            stats.append(dist.covariance_matrix()[c_dim, c_dim])
+# def get_dist_stats(base_dir, num_updates, context_dim=2):
+#     dist_stats = []
+#     for iteration in range(num_updates):
+#         dist = os.path.join(base_dir, "iteration-%d" % int(iteration*5), "context_dist.npy")
+#         dist = GaussianTorchDistribution.from_weights(context_dim, np.load(dist))
+#         stats = []
+#         for c_dim in range(context_dim):
+#             stats.append(dist.mean()[c_dim])
+#         for c_dim in range(context_dim):
+#             stats.append(dist.covariance_matrix()[c_dim, c_dim])
 
-        dist_stats.append(stats)
+#         dist_stats.append(stats)
+#     dist_stats = np.array(dist_stats)
+#     return dist_stats
+
+def get_dist_stats(base_dir, iterations, context_dim=2):
+    dist_stats = []
+    for iteration in iterations:
+        dist_path = os.path.join(base_dir, f"iteration-{iteration}", "teacher.npy")
+        if os.path.exists(dist_path):
+            dist = GaussianTorchDistribution.from_weights(context_dim, np.load(dist_path))
+            stats = []
+            for c_dim in range(context_dim):
+                stats.append(dist.mean()[c_dim])
+            for c_dim in range(context_dim):
+                stats.append(dist.covariance_matrix()[c_dim, c_dim])
+
+            dist_stats.append(stats)
+        else:
+            print(f"No curriculum data found: {dist_path}")
+            dist_stats = []
+            break
     dist_stats = np.array(dist_stats)
     return dist_stats
-
 
 def calc_stat_var(dist_stats):
     return np.var(dist_stats, axis=0)
 
 
-def run_welch_t_test(base_log_dir, seeds, num_iters, env, setting, algorithms):
-    num_updates = int(num_iters / 5)
+def run_welch_t_test(base_log_dir, seeds, env, setting, algorithms):
     context_dim = setting["context_dim"]
+    num_iters = setting["num_iters"]
+    num_updates_per_iteration = setting["num_updates_per_iteration"]
+
+    iterations=np.arange(0, num_iters, num_updates_per_iteration, dtype=int)
 
     dist_stats = {}
     stat_vars = {}
@@ -45,7 +67,7 @@ def run_welch_t_test(base_log_dir, seeds, num_iters, env, setting, algorithms):
             base_dir = os.path.join(base_log_dir, env, algorithm, model, f"seed-{seed}")
             dist_stats_seed = get_dist_stats(
                 base_dir=base_dir,
-                num_updates=num_updates,
+                iterations=iterations,
                 context_dim=context_dim)
             dist_stats[algo_name].append(dist_stats_seed)
         dist_stats[algo_name] = np.array(dist_stats[algo_name])
@@ -78,26 +100,30 @@ def run_welch_t_test(base_log_dir, seeds, num_iters, env, setting, algorithms):
 
 def main():
     base_log_dir = os.path.join(Path(os.getcwd()).parent, "logs")
-    seeds = ["1", "2", "3", "4", "5"]
-    num_iters = 200
-    # env = "two_door_discrete_2d_wide"
-    # env = "two_door_discrete_4d_narrow"
-    env = "half_cheetah_3d_narrow"
+    num_seeds = 15
+    seeds = [str(i) for i in range(1, num_seeds+1)]
+    env = "two_door_discrete_2d_wide"
+    # env = "swimmer_2d_narrow"
+    # env = "half_cheetah_3d_narrow"
 
     settings = {
         "two_door_discrete_2d_wide":
             {
                 "context_dim": 2,
+                "num_updates_per_iteration": 5,
+                "num_iters": 350,
             },
-
-        "two_door_discrete_4d_narrow":
+        "swimmer_2d_narrow":
             {
-                "context_dim": 4,
+                "context_dim": 2,
+                "num_updates_per_iteration": 10,
+                "num_iters": 200,
             },
-
         "half_cheetah_3d_narrow": 
             {
                 "context_dim": 3,
+                "num_updates_per_iteration": 10,
+                "num_iters": 250,
             },
     }
 
@@ -107,41 +133,41 @@ def main():
             "rm_guided": {
                 "algorithm": "rm_guided_self_paced",
                 "name": "RM-guided SPRL",
-                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=0.96_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
-                "target_conv": 18,  # update at which the distribution converges to the target
+                "model": "sac_ALPHA_OFFSET=10_KL_EPS=0.05_OFFSET=70_ZETA=0.96_PCMDP=True",
+                "target_conv": 22,  # update at which the distribution converges to the target
             },
             "intermediate": {
                 "algorithm": "self_paced",
                 "name": "Intermediate SPRL",
-                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
-                "target_conv": 26,  # update at which the distribution converges to the target
-            },
-            "self_paced": {
-                "algorithm": "self_paced",
-                "name": "SPDL",
-                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
-                "target_conv": 21,  # update at which the distribution converges to the target
-            },
-        },
-
-        "two_door_discrete_4d_narrow": {
-            "rm_guided": {
-                "algorithm": "rm_guided_self_paced",
-                "name": "RM-guided SPRL",
-                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.0_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
-                "target_conv": 14,  # update at which the distribution converges to the target
-            },
-            "intermediate": {
-                "algorithm": "self_paced",
-                "name": "Intermediate SPRL",
-                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDPP",
+                "model": "sac_ALPHA_OFFSET=10_KL_EPS=0.05_OFFSET=70_ZETA=1.2_PCMDP=True",
                 "target_conv": 36,  # update at which the distribution converges to the target
             },
             "self_paced": {
                 "algorithm": "self_paced",
                 "name": "SPDL",
-                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000",
-                "target_conv": 35,  # update at which the distribution converges to the target
+                "model": "sac_ALPHA_OFFSET=10_KL_EPS=0.05_OFFSET=70_ZETA=1.2_PCMDP=False",
+                "target_conv": 36,  # update at which the distribution converges to the target
+            },
+        },
+
+        "swimmer_2d_narrow": {
+            "rm_guided": {
+                "algorithm": "rm_guided_self_paced",
+                "name": "RM-guided SPRL",
+                "model": "sac_ALPHA_OFFSET=5_KL_EPS=0.1_OFFSET=10_ZETA=1.0_PCMDP=True",
+                "target_conv": 13,  # update at which the distribution converges to the target
+            },
+            "intermediate": {
+                "algorithm": "self_paced",
+                "name": "Intermediate SPRL",
+                "model": "sac_ALPHA_OFFSET=5_KL_EPS=0.1_OFFSET=10_ZETA=4.0_PCMDP=True",
+                "target_conv": 13,  # update at which the distribution converges to the target
+            },
+            "self_paced": {
+                "algorithm": "self_paced",
+                "name": "SPDL",
+                "model": "sac_ALPHA_OFFSET=5_KL_EPS=0.1_OFFSET=10_ZETA=4.0_PCMDP=False",
+                "target_conv": 19,  # update at which the distribution converges to the target
             },
         },
 
@@ -149,14 +175,14 @@ def main():
             "rm_guided": {
                 "algorithm": "rm_guided_self_paced",
                 "name": "RM-guided SPRL",
-                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=1.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
-                "target_conv": 22,  # update at which the distribution converges to the target
+                "model": "sac_ALPHA_OFFSET=0_KL_EPS=0.05_OFFSET=80_ZETA=1.0_PCMDP=True",
+                "target_conv": 20,  # update at which the distribution converges to the target
             },
             "intermediate": {
                 "algorithm": "self_paced",
                 "name": "Intermediate SPRL",
-                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=4.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
-                "target_conv": 39,  # update at which the distribution converges to the target
+                "model": "sac_ALPHA_OFFSET=0_KL_EPS=0.05_OFFSET=80_ZETA=4.0_PCMDP=True",
+                "target_conv": 24,  # update at which the distribution converges to the target
             },
         #     "self_paced": {
         #         "algorithm": "self_paced",
@@ -170,7 +196,6 @@ def main():
     run_welch_t_test(
         base_log_dir=base_log_dir,
         seeds=seeds,
-        num_iters=num_iters,
         env=env,
         setting=settings[env],
         algorithms=algorithms[env])

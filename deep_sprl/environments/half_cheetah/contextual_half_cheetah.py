@@ -46,12 +46,13 @@ class ContextualHalfCheetah(gym.Env):
                 high_ext = np.concatenate((self.observation_space.high, np.array(self.rm_info["num_states"]-1)))
             self.observation_space = gym.spaces.Box(low=low_ext, high=high_ext)
 
-        self.rewards = {0: {0: None, 1: 10.},
-                        1: {1: None, 2: 100.},
-                        2: {2: None, 3: 500.},
-                        3: {3: None, 4: 1000.},
-                        4: {4: None},
-                        }
+        self.rewards = {
+            0: {0: None, 1: 10.},
+            1: {1: None, 2: 100.},
+            2: {2: None, 3: 500.},
+            3: {3: None, 4: 1000.},
+            4: {4: None},
+        }
 
         self._rm_state = None
         self._past_rm_state = None
@@ -128,7 +129,3 @@ class ContextualHalfCheetah(gym.Env):
 
     def render(self, mode='human'):
         self.env.render(mode=mode)
-
-
-
-

@@ -1,42 +1,46 @@
 import os
 import sys
+import pickle as pkl
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import rc
 from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
-from scipy.stats import norm
 from pathlib import Path
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from deep_sprl.util.gaussian_torch_distribution import GaussianTorchDistribution
 
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 def get_results(base_dir, iterations, get_success=False):
     expected = []
     success = []
-
+    perf_c = []
+    success_c = []
     for iteration in iterations:
         perf_file = os.path.join(base_dir, f"iteration-{iteration}", "performance.npy")
         if os.path.exists(perf_file):
             results = np.load(perf_file)
             disc_rewards = results[:, 1]
             expected.append(np.mean(disc_rewards))
+            perf_c.append(disc_rewards)
 
             if get_success:
                 successful_eps = results[:, -1]
                 success.append(np.mean(successful_eps))
+                success_c.append(successful_eps)
+
         else:
-            print(f"No evaluation data found: {os.path.join(base_dir, 'iteration-0', 'performance.npy')}")
+            print(f"No evaluation data found: {perf_file}")
             expected = []
             success = []
             break
-    return expected, success
+    return expected, success, perf_c, success_c
 
 
 def get_dist_stats(base_dir, iterations, context_dim=2):
     dist_stats = []
     for iteration in iterations:
-        dist_path = os.path.join(base_dir, f"iteration-{iteration}", "context_dist.npy")
+        dist_path = os.path.join(base_dir, f"iteration-{iteration}", "teacher.npy")
         dist = GaussianTorchDistribution.from_weights(context_dim, np.load(dist_path))
         stats = []
         for c_dim in range(context_dim):
@@ -54,14 +58,17 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
     plt.rcParams['font.serif'] = ['Times New Roman'] + plt.rcParams['font.serif']
 
     num_iters = setting["num_iters"]
+    steps_per_iter = setting["steps_per_iter"]
     context_dim = setting["context_dim"]
     fontsize = setting["fontsize"]
     figsize = setting["figsize"]
     grid_shape = setting["grid_shape"]
     bbox_to_anchor = setting["bbox_to_anchor"]
     axes_info = setting["axes_info"]
+    hist_bar_num = setting["hist_bar_num"]
 
     iterations = np.arange(0, num_iters, num_updates_per_iteration, dtype=int)
+    iterations_step = iterations*steps_per_iter
 
     fig = plt.figure(constrained_layout=True, figsize=figsize)
     gs = GridSpec(grid_shape[0], grid_shape[1], figure=fig)
@@ -75,14 +82,17 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
         label = algorithms[cur_algo]["label"]
         model = algorithms[cur_algo]["model"]
         color = algorithms[cur_algo]["color"]
+        print(algorithm)
 
         expected = []
         success = []
         dist_stats = []
+        perf_c = []
+        success_c = []
         for seed in seeds:
             base_dir = os.path.join(base_log_dir, env, algorithm, model, f"seed-{seed}")
             print(base_dir)
-            expected_seed, success_seed = get_results(
+            expected_seed, success_seed, perf_c_seed, success_c_seed = get_results(
                 base_dir=base_dir,
                 iterations=iterations,
                 get_success=plot_success,
@@ -91,7 +101,10 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
                 continue
 
             expected.append(expected_seed)
-            if algorithm[:8] != "goal_gan" and algorithm[:7] != "default":
+            perf_c.append(perf_c_seed)
+            success_c.append(success_c_seed)
+            if "self_paced" in algorithm:
+            # if False:
                 dist_stats_seed = get_dist_stats(
                     base_dir=base_dir,
                     iterations=iterations,
@@ -102,34 +115,58 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
 
         expected = np.array(expected)
         expected_mid = np.median(expected, axis=0)
-        expected_low = np.min(expected, axis=0)
-        expected_high = np.max(expected, axis=0)
         expected_qlow = np.quantile(expected, 0.25, axis=0)
         expected_qhigh = np.quantile(expected, 0.75, axis=0)
+        expected_low = np.min(expected, axis=0)
+        expected_high = np.max(expected, axis=0)
+        # expected_mid = np.mean(expected, axis=0)
+        # expected_std = np.std(expected, axis=0)
+        # expected_qlow = expected_mid-expected_std
+        # expected_qhigh = expected_mid+expected_std
 
+        # perf_c = np.moveaxis(np.array(perf_c), 0, -1)
+        # perf_c_ave = np.mean(perf_c, axis=2)
 
-        if algorithm[:8] != "goal_gan" and algorithm[:7] != "default":
+        # success_c = np.moveaxis(np.array(success_c), 0, -1)
+        # success_c_ave = np.mean(success_c, axis=2)
+
+        if "self_paced" in algorithm:
+        # if False:
             dist_stats = np.array(dist_stats)
             dist_stats = np.swapaxes(dist_stats, 1, 2)
             dist_stats = np.swapaxes(dist_stats, 0, 1)
             dist_stats_mid = np.median(dist_stats, axis=1)
-            dist_stats_low = np.min(dist_stats, axis=1)
-            dist_stats_high = np.max(dist_stats, axis=1)
+            # dist_stats_low = np.min(dist_stats, axis=1)
+            # dist_stats_high = np.max(dist_stats, axis=1)
+            dist_stats_low = np.quantile(dist_stats, 0.25, axis=1)
+            dist_stats_high = np.quantile(dist_stats, 0.75, axis=1)
+
+            # print(dist_stats[:context_dim, :])
 
             for ax_i in range(context_dim):
-                axes[ax_i].plot(iterations, dist_stats_mid[ax_i, :], color=color, label=f"{label}-mean", marker=".")
-                axes[ax_i].fill_between(iterations, dist_stats_low[ax_i, :], dist_stats_high[ax_i, :], color=color,
+                axes[ax_i].plot(iterations_step, dist_stats_mid[ax_i, :], color=color, label=f"{label}-mean", marker=".")
+                axes[ax_i].fill_between(iterations_step, dist_stats_low[ax_i, :], dist_stats_high[ax_i, :], color=color,
                                         alpha=0.5)
-                axes[ax_i].plot(iterations, dist_stats_mid[context_dim+ax_i, :], color=color, label=f"{label}-var",
+                axes[ax_i].plot(iterations_step, dist_stats_mid[context_dim+ax_i, :], color=color, label=f"{label}-var",
                                 ls="--", marker="x")
-                axes[ax_i].fill_between(iterations, dist_stats_low[context_dim+ax_i, :],
+                axes[ax_i].fill_between(iterations_step, dist_stats_low[context_dim+ax_i, :],
                                         dist_stats_high[context_dim+ax_i, :], color=color, alpha=0.5, ls="--")
 
-        axes[context_dim].plot(iterations, expected_mid, color=color, linewidth=2.0, label=f"{label}",
-                      # marker="^",
+        axes[context_dim].plot(iterations_step, expected_mid, color=color, linewidth=2.0, label=f"{label}",
+                      marker="^",
                       )
-        axes[context_dim].fill_between(iterations, expected_qlow, expected_qhigh, color=color, alpha=0.4)
-        axes[context_dim].fill_between(iterations, expected_low, expected_high, color=color, alpha=0.2)
+        axes[context_dim].fill_between(iterations_step, expected_qlow, expected_qhigh, color=color, alpha=0.4)
+        axes[context_dim].fill_between(iterations_step, expected_low, expected_high, color=color, alpha=0.2)
+
+        # axes[context_dim + 1].hist(perf_c_ave[-1, :], density=True, bins="auto", edgecolor="white", color=color, alpha=0.4)
+        # perf_c_p = ([], [])
+        # perf_interval = axes_info["ylim"][context_dim][1] / hist_bar_num
+        # perf_c_ave_final = perf_c_ave[-1, :]
+        # for b in range(hist_bar_num):
+        #     num_c = np.sum((perf_interval*b  <= perf_c_ave_final) & (perf_c_ave_final < (b+1)*perf_interval))
+        #     perf_c_p[0].append(perf_interval*b+perf_interval/2)
+        #     perf_c_p[1].append(num_c / perf_c_ave_final.shape[0])
+        # axes[context_dim + 1].bar(perf_c_p[0], perf_c_p[1], edgecolor="white", width=perf_interval, color=color, alpha=0.4)
 
         if plot_success:
             success = np.array(success)
@@ -139,11 +176,20 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
             success_qlow = np.quantile(success, 0.25, axis=0)
             success_qhigh = np.quantile(success, 0.75, axis=0)
 
-            axes[-1].plot(iterations, success_mid, color=color, linewidth=2.0, label=f"{label}",
+            axes[-1].plot(iterations_step, success_mid, color=color, linewidth=2.0, label=f"{label}",
                           # marker="^",
                           )
-            axes[-1].fill_between(iterations, success_qlow, success_qhigh, color=color, alpha=0.4)
-            axes[-1].fill_between(iterations, success_low, success_high, color=color, alpha=0.2)
+            axes[-1].fill_between(iterations_step, success_qlow, success_qhigh, color=color, alpha=0.4)
+            axes[-1].fill_between(iterations_step, success_low, success_high, color=color, alpha=0.2)
+
+            # success_c_p = ([], [])
+            # success_interval = 1. / hist_bar_num
+            # success_c_ave_final = success_c_ave[-1, :]
+            # for b in range(hist_bar_num):
+            #     num_c = np.sum((success_interval*b <= success_c_ave_final) & (success_c_ave_final < (b+1)*success_interval))
+            #     success_c_p[0].append(success_interval*b+success_interval/2)
+            #     success_c_p[1].append(num_c / success_c_ave_final.shape[0])
+            # axes[-1].bar(success_c_p[0], success_c_p[1], edgecolor="white", width=success_interval, color=color, alpha=0.4)
 
     markers = [".", "x"]
     linestyles = ["-", "--"]
@@ -156,20 +202,25 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
         if ax_i < context_dim:
             axes[ax_i].legend(lines, labels, fontsize=fontsize*0.8, loc="best", framealpha=1.)
             if grid_shape[0] == 1:
-                axes[ax_i].set_xlabel('Context Distribution Update', fontsize=fontsize)
-    axes[-1].set_xlabel('Context Distribution Update', fontsize=fontsize)
+                # axes[ax_i].set_xlabel('Context Distribution Update', fontsize=fontsize)
+                axes[ax_i].set_xlabel('Number of environment interactions', fontsize=fontsize)
+    # axes[-1].set_xlabel('Context Distribution Update', fontsize=fontsize)
+    axes[-1].set_xlabel('Number of environment interactions', fontsize=fontsize)
 
     colors = []
     labels = []
+    num_alg = 0
     for cur_algo in algorithms:
+        num_alg += 1
         colors.append(algorithms[cur_algo]["color"])
         labels.append(algorithms[cur_algo]["label"])
-    markers = ["" for i in range(len(algorithms))]
-    linestyles = ["-" for i in range(len(algorithms))]
+
+    markers = ["" for i in range(num_alg)]
+    linestyles = ["-" for i in range(num_alg)]
     labels.reverse()
     lines = [Line2D([0], [0], color=colors[-i-1], linestyle=linestyles[i], marker=markers[i], linewidth=2.0)
-             for i in range(len(algorithms))]
-    lgd = fig.legend(lines, labels, ncol=len(algorithms), loc="upper center", bbox_to_anchor=bbox_to_anchor,
+             for i in range(num_alg)]
+    lgd = fig.legend(lines, labels, ncol=num_alg, loc="upper center", bbox_to_anchor=bbox_to_anchor,
                      fontsize=fontsize, handlelength=1.0, labelspacing=0., handletextpad=0.5, columnspacing=1.0)
 
     figname = ""
@@ -178,163 +229,100 @@ def plot_results(base_log_dir, num_updates_per_iteration, seeds, env, setting, a
         if cur_algo_i < len(algorithms)-1:
             figname += "_vs_"
 
-    plt.savefig(f"{Path(os.getcwd()).parent}/figures/{env}_{figname}{figname_extra}.pdf", dpi=500,
+    fig_path = os.path.join(Path(os.getcwd()).parent, "figures")
+    if not os.path.exists(fig_path):
+        os.makedirs(fig_path)
+    plt.savefig( os.path.join(fig_path, f"{env}_{figname}{figname_extra}.pdf"), dpi=500,
                 bbox_inches='tight', bbox_extra_artists=(lgd,))
 
 
 def main():
-    base_log_dir = f"{Path(os.getcwd()).parent}/logs"
-    num_updates_per_iteration = 5
-    seeds = ["1", "2", "3", "4", "5"]
-    env = "half_cheetah_3d_narrow"
-    # env = "two_door_discrete_2d_wide"
-    # env = "two_door_discrete_4d_narrow"
-    figname_extra = "" 
-    plot_success = False
+    base_log_dir = os.path.join(Path(os.getcwd()).parent,"logs")
+    num_updates_per_iteration = 10
+    # seeds = [str(i) for i in range(1, 16)]
+    # seeds = [str(i) for i in range(1, 11)]
+    seeds = [2,3,4,6,7,9,10]
+    target_type = "narrow"
+    env = f"swimmer_2d_{target_type}"
+    figname_extra = f"_TARGET=-0.6_16_seeds={seeds}"
+    # target_type = "narrow"
+    # env = f"half_cheetah_3d_{target_type}"
+    # figname_extra = f"_ARCH=256_2_BUFFER=500000_ITER=250_seeds={seeds}_FINAL"
+    # target_type = "wide"
+    # env = f"two_door_discrete_2d_{target_type}"
+    # figname_extra = "_bar_15seeds_BUFFER=150000_NUM_ITER=350"
+    plot_success = True
 
     algorithms = {
-        #############################
-        ## HalfCheetah-v3 & Narrow ##
-        #############################
+        "two_door_discrete_2d_wide": {
+            "RM-guided SPRL": {
+                "algorithm": "rm_guided_self_paced",
+                "label": "RM-guided SPRL",
+                "model": "sac_ALPHA_OFFSET=10_KL_EPS=0.05_OFFSET=70_ZETA=0.96_PCMDP=True",
+                "color": "blue",
+                "aux_color": "",
+            },
+        },
+
         "half_cheetah_3d_narrow": {
-            "GoalGAN": {
-                "algorithm": "goal_gan",
-                "label": "GoalGAN",
-                "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.1_GG_P_OLD=0.3_LR=0.001_ARCH=256_RBS=250000",
-                "color": "gold",
-            },
-            "Default": {
-                "algorithm": "default",
-                "label": "Default",
-                "model": "sac_LR=0.001_ARCH=256_RBS=250000",
-                "color": "cyan",
-            },
-            "Default(P)": {
-                "algorithm": "default",
-                "label": "Default*",
-                "model": "sac_LR=0.001_ARCH=256_RBS=250000_PRODUCTCMDP",
-                "color": "magenta",
-            },
-            "SPRL": {
-                "algorithm": "self_paced",
-                "label": "SPDL",
-                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=4.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS",
-                "color": "green",
-            },
-            "Intermediate": {
-                "algorithm": "self_paced",
-                "label": "Intermediate SPRL",
-                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=4.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
-                "color": "red",
-            },
             "RM-guided SPRL": {
                 "algorithm": "rm_guided_self_paced",
                 "label": "RM-guided SPRL",
-                "model": "sac_ALPHA_OFFSET=0_MAX_KL=0.05_OFFSET=80_ZETA=1.0_LR=0.001_ARCH=256_RBS=250000_TRUEREWARDS_PRODUCTCMDP",
+                "model": "sac_ALPHA_OFFSET=0_KL_EPS=0.05_OFFSET=80_ZETA=1.0_PCMDP=True",
                 "color": "blue",
+                "aux_color": "",
             },
         },
 
-        ########################
-        ## Two-door 2D & Wide ##
-        ########################
-        "two_door_discrete_2d_wide": {
-            "GoalGAN": {
-                "algorithm": "goal_gan",
-                "label": "GoalGAN",
-                "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.05_GG_P_OLD=0.2_LR=0.0003_ARCH=256_RBS=60000",
-                "color": "gold",
+        "swimmer_2d_narrow": {
+            # "RM-guided SPRL_KL=0.01": {
+            #     "algorithm": "rm_guided_self_paced",
+            #     "label": "RM-guided SPRL_KL=0.01",
+            #     "model": "sac_ALPHA_OFFSET=5_KL_EPS=0.01_OFFSET=10_ZETA=1.0_PCMDP=True",
+            #     "color": "blue",
+            #     "aux_color": "",
+            # },
+            # "RM-guided SPRL_KL=0.05": {
+            #     "algorithm": "rm_guided_self_paced",
+            #     "label": "RM-guided SPRL_KL=0.05",
+            #     "model": "sac_ALPHA_OFFSET=5_KL_EPS=0.05_OFFSET=10_ZETA=1.0_PCMDP=True",
+            #     "color": "green",
+            #     "aux_color": "",
+            # # },
+            "RM-guided SPRL_KL=0.1": {
+                "algorithm": "rm_guided_self_paced",
+                "label": "RM-guided SPRL_KL=0.1",
+                "model": "sac_ALPHA_OFFSET=5_KL_EPS=0.1_OFFSET=10_ZETA=1.0_PCMDP=True",
+                "color": "magenta",
+                "aux_color": "",
             },
             "Default": {
                 "algorithm": "default",
                 "label": "Default",
-                "model": "sac_LR=0.0003_ARCH=256_RBS=60000",
-                "color": "cyan",
-            },
-            "Default(P)": {
-                "algorithm": "default",
-                "label": "Default*",
-                "model": "sac_LR=0.0003_ARCH=256_RBS=60000_PRODUCTCMDP",
-                "color": "magenta",
-            },
-            "SPRL": {
-                "algorithm": "self_paced",
-                "label": "SPDL",
-                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS",
-                "color": "green",
-            },
-            "Intermediate": {
-                "algorithm": "self_paced",
-                "label": "Intermediate SPRL",
-                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=1.2_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
+                "model": "sac_PCMDP=True",
                 "color": "red",
-            },
-            "RM-guided SPRL": {
-                "algorithm": "rm_guided_self_paced",
-                "label": "RM-guided SPRL",
-                "model": "sac_ALPHA_OFFSET=10_MAX_KL=0.05_OFFSET=70_ZETA=0.96_LR=0.0003_ARCH=256_RBS=60000_TRUEREWARDS_PRODUCTCMDP",
-                "color": "blue",
+                "aux_color": "",
             },
         },
-
-        ##########################
-        ## Two-door 4D & Narrow ##
-        ##########################
-        "two_door_discrete_2d_wide": {
-            "GoalGAN": {
-                "algorithm": "goal_gan",
-                "label": "GoalGAN",
-                "model": "sac_GG_FIT_RATE=100_GG_NOISE_LEVEL=0.1_GG_P_OLD=0.3_LR=0.0003_ARCH=64_RBS=60000",
-                "color": "gold",
-            },
-            "Default": {
-                "algorithm": "default",
-                "label": "Default",
-                "model": "sac_LR=0.0003_ARCH=64_RBS=60000",
-                "color": "cyan",
-            },
-            "Default(P)": {
-                "algorithm": "default",
-                "label": "Default*",
-                "model": "sac_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
-                "color": "magenta",
-            },
-            "SPDL": {
-                "algorithm": "self_paced",
-                "label": "SPDL",
-                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000",
-                "color": "green",
-            },
-            "Intermediate": {
-                "algorithm": "self_paced",
-                "label": "Intermediate SPRL",
-                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.2_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
-                "color": "red",
-            },
-            "RM-guided": {
-                "algorithm": "rm_guided_self_paced",
-                "label": "RM-guided SPRL",
-                "model": "sac_ALPHA_OFFSET=25_MAX_KL=0.05_OFFSET=5_ZETA=1.0_LR=0.0003_ARCH=64_RBS=60000_PRODUCTCMDP",
-                "color": "blue",
-            },
-        }
     }
 
     settings = {
-        "two_door_discrete_2d_wide":
+        "two_door_discrete_2d":
             {
                 "context_dim": 2,
-                "num_iters": 200,
+                "num_iters": 350,
+                "steps_per_iter": 16384,
                 "fontsize": 12,
-                "figsize": (5 * (3+1*plot_success), 2.5),
-                "grid_shape": (1, (3+1*plot_success)),
+                "hist_bar_num": 10,
+                "figsize": (5 * 2, 2.5 * 2),
+                "grid_shape": (2, 2),
                 "bbox_to_anchor": (.5, 1.25),
                 "axes_info": {
-                    "ylabel": ['Param-1: Door 1 Position',
-                               'Param-2: Door 2 Position',
-                               'Expected Discounted Return',
-                                'Successful Episodes',
-                                ],
+                    "ylabel": ['Param-1: Door position',
+                               'Param-2: Door width',
+                               'Expected discounted return',
+                               'Expected rate of success',
+                               ],
                     "ylim": [[-.5, 2.2],
                              [-.5, 2.2],
                              [-.1, 4.],
@@ -342,37 +330,15 @@ def main():
                     },
             },
 
-        "two_door_discrete_4d_narrow":
-            {
-                "context_dim": 4,
-                "num_iters": 200,
-                "fontsize": 12,
-                "figsize": (5, 2.1*(5+1*plot_success)),
-                "grid_shape": ((5+1*plot_success), 1),
-                "bbox_to_anchor": (.5, 1.07),
-                "axes_info": {
-                    "ylabel": ['Param-1: Door 1 Position',
-                               'Param-2: Door 2 Position',
-                               'Param-3: Box Position',
-                               'Param-4: Goal Position',
-                               'Expected Discounted Return',
-                               "Successful Episode"],
-                    "ylim": [[-.5, 2.2],
-                             [-.5, 2.2],
-                             [-2.2, 1],
-                             [-2.2, 1],
-                             [-.1, 4.5],
-                             [-0.1, 1.1]],
-                }
-            },
-
-        "half_cheetah_3d_narrow":
+        "half_cheetah_3d":
             {
                 "context_dim": 3,
-                "num_iters": 200,
+                "num_iters": 250,
+                "steps_per_iter": 16384,
                 "fontsize": 8,
-                "figsize": (5, 2.1*(4+1*plot_success)),
-                "grid_shape": (4+1*plot_success, 1),
+                "hist_bar_num": 10,
+                "figsize": (5, 2.5*5),
+                "grid_shape": (5, 1),
                 "bbox_to_anchor": (.5, 1.05),
                 "axes_info": {
                     "ylabel": ['Param-1: Flag 1',
@@ -388,6 +354,31 @@ def main():
                              [-0.05, 1.05]],
                 },
             },
+
+        "swimmer_2d":
+            {
+                "context_dim": 2,
+                "num_iters": 200,
+                "steps_per_iter": 16384,
+                "fontsize": 8,
+                "hist_bar_num": 10,
+                "figsize": (5*2, 2.5*2),
+                "grid_shape": (2, 2),
+                "bbox_to_anchor": (.5, 1.05),
+                "axes_info": {
+                    "ylabel": ['Param-1: Flag 1',
+                               'Param-2: Flag 2',
+                               'Expected Discounted Return',
+                               'Successful Episodes',
+                               ],
+                    "ylim": [[-1.0, 0.5],
+                             [-0.5, 2.0],
+                            # [-0.05, 1.05],
+                             [-10., 500.],
+                             [-0.05, 1.05]],
+                },
+            },
+
     }
 
     plot_results(
@@ -395,7 +386,7 @@ def main():
         num_updates_per_iteration=num_updates_per_iteration,
         seeds=seeds,
         env=env,
-        setting=settings[env],
+        setting=settings[env[:-len(target_type)-1]],
         algorithms=algorithms[env],
         plot_success=plot_success,
         figname_extra=figname_extra,

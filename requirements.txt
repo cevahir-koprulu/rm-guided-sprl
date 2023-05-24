@@ -7,3 +7,8 @@ pytorch
 scikit-learn
 gym
 pygame
+gurobipy
+gpytorch
+geomloss
+cython
+cyipopt
