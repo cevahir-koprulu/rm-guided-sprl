@@ -1,7 +1,6 @@
 # Reward-Machine-Guided, Self-Paced Reinforcement Learning
 
-Cevahir Koprulu, Ufuk Topcu
-The University of Texas at Austin
+Cevahir Koprulu and Ufuk Topcu from The University of Texas at Austin
 
 Accepted for the 39th Conference on Uncertainty in Artificial Intelligence (UAI 2023).
 
